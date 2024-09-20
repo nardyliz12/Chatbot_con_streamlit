@@ -3,7 +3,7 @@ from openai import OpenAI
 
 # Configuración inicial
 st.title("Chatbot Personalizado")
-openai_api_key = "tu_api_key_aquí"
+openai_api_key = "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"
 
 # Configurar cliente OpenAI
 client = OpenAI(api_key=openai_api_key)

@@ -1,7 +1,5 @@
 import streamlit as st
-
-from openai import OpenAI
-
+import openai  # Asegúrate de que esta línea esté aquí
 
 
 # titulo

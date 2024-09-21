@@ -3,7 +3,7 @@ import time
 from groq import Groq
 from typing import Generator
 
-st.title("Groq Bot")
+st.title("Chatbot your friend")
 
 # Declaramos el cliente de Groq
 client = Groq(

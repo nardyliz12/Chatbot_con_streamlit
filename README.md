@@ -5,7 +5,8 @@
 1. Install the requirements
 
    ```
-   $ pip install -r Requiremientos.txt
+   $ pip install -r requirements.txt
+
    ```
 
 2. Run the app

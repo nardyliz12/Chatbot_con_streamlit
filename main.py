@@ -7,7 +7,7 @@ st.title("Groq Bot")
 
 # Declaramos el cliente de Groq
 client = Groq(
-    api_key=st.secrets["api_key"], # Cargamos la API key del .streamlit/secrets.toml
+    api_key=st.secrets["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"], # Cargamos la API key del .streamlit/secrets.toml
 )
 
 # Lista de modelos pare elegir

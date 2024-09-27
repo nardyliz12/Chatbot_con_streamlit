@@ -12,7 +12,7 @@ st.title("ChatMang - Chatbot de Restaurante")
 client = Groq(api_key=st.secrets["APIKey"])
 
 # Lista de modelos para elegir
-modelos = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768']
+modelos = ['llama3-8b-8192']
 
 # Función para generar respuestas del chat carácter por carácter
 def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
@@ -22,11 +22,11 @@ def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
 
 # Cargar el menú desde un archivo CSV
 def cargar_menu():
-    return pd.read_csv('menu.csv')
+    return pd.read_csv('menu_restaurante.csv')
 
 # Verificar si el pedido es válido (producto está en la carta)
-def verificar_pedido(mensaje, menu):
-    productos_en_menu = menu['Producto'].str.lower().tolist()
+def verificar_pedido(mensaje, menu_restaurante):
+    productos_en_menu = menumenu_restaurante['Producto'].str.lower().tolist()
     for palabra in mensaje.lower().split():
         if palabra in productos_en_menu:
             return True

@@ -24,11 +24,11 @@ def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
 def cargar_menu():
     return pd.read_csv('menu_restaurante.csv')
 
-# Verificar si el pedido es válido (producto está en la carta)
+# Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
-    productos_en_menu = menu_restaurante['Producto'].str.lower().tolist()
+    platos_en_menu = menu_restaurante['Plato'].str.lower().tolist()  # Cambiamos 'Producto' por 'Plato'
     for palabra in mensaje.lower().split():
-        if palabra in productos_en_menu:
+        if palabra in platos_en_menu:
             return True
     return False
 
@@ -116,12 +116,12 @@ if prompt and len(prompt) > 0:
 
                     # Guardar pedido
                     pedido = prompt.lower()
-                    item = menu[menu['Producto'].str.lower() == pedido]['Producto'].values[0]
-                    monto = menu[menu['Producto'].str.lower() == pedido]['Precio'].values[0]
+                    item = menu[menu['Plato'].str.lower() == pedido]['Plato'].values[0]  # Cambiamos 'Producto' por 'Plato'
+                    monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values[0]
                     guardar_pedido(item, monto)
 
                 else:
-                    st.error("El producto solicitado no está en el menú. Por favor revisa la carta.")
+                    st.error("El plato solicitado no está en el menú. Por favor revisa la carta.")
 
                 # Verificar si se menciona un distrito válido para el reparto
                 distrito = verificar_distrito(prompt)

@@ -24,16 +24,16 @@ def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
 def cargar_menu():
     return pd.read_csv('menu_restaurante.csv')
 
-# Verificar si el pedido es válido (producto está en la carta)
+# Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
-    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()
-    for palabra in mensaje.lower().split():
-        if palabra in productos_en_menu:
+    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()  # Cambiamos 'Producto' por 'Plato'
+    for producto in productos_en_menu:
+        if producto in mensaje.lower():
             return True
     return False
 
 # Verificar distrito de reparto
-DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]
+DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]  # Asegúrate de que esto coincida con lo que necesitas
 
 def verificar_distrito(mensaje):
     for distrito in DISTRITOS_REPARTO:
@@ -116,17 +116,12 @@ if prompt and len(prompt) > 0:
 
                     # Guardar pedido
                     pedido = prompt.lower()
-                    matching_items = menu[menu['Plato'].str.lower() == pedido]
-
-                    if not matching_items.empty:
-                        item = matching_items['Plato'].values[0]
-                        monto = matching_items['Precio'].values[0]
-                        guardar_pedido(item, monto)
-                    else:
-                        st.error("El plato solicitado no está en el menú. Por favor revisa la carta.")
+                    item = menu[menu['Plato'].str.lower() == pedido]['Plato'].values[0]  # Cambiamos 'Producto' por 'Plato'
+                    monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values[0]
+                    guardar_pedido(item, monto)
 
                 else:
-                    st.error("El producto solicitado no está en el menú. Por favor revisa la carta.")
+                    st.error("El plato solicitado no está en el menú. Por favor revisa la carta.")
 
                 # Verificar si se menciona un distrito válido para el reparto
                 distrito = verificar_distrito(prompt)

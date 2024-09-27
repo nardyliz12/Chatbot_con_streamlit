@@ -1,29 +1,55 @@
+import os
 import streamlit as st
-import time
+import pandas as pd
+from datetime import datetime
 from groq import Groq
 from typing import Generator
 
-st.title("ChatMang")
+# Título de la aplicación
+st.title("ChatMang - Chatbot de Restaurante")
 
-# Declaramos el cliente de Groq
-client = Groq(
-    api_key=st.secrets["APIKey"],  # Cargamos la API key del .streamlit/secrets.toml
-)
+# Declaramos el cliente de Groq con la API Key desde el archivo .streamlit/secrets.toml
+client = Groq(api_key=st.secrets["APIKey"])
 
 # Lista de modelos para elegir
 modelos = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768']
 
-def generate_chat_responses(chat_completion) -> Generator[str, None, None]:   
-    """Generated Chat Responses
-       Genera respuestas de chat a partir de la información de completado de chat, mostrando caracter por caracter.
-
-       Args: chat_completion (str): La información de completado de chat.
-
-       Yields: str: Cada respuesta generada. 
-    """ 
+# Función para generar respuestas del chat carácter por carácter
+def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
     for chunk in chat_completion:
         if chunk.choices[0].delta.content:
             yield chunk.choices[0].delta.content
+
+# Cargar el menú desde un archivo CSV
+def cargar_menu():
+    return pd.read_csv('menu.csv')
+
+# Verificar si el pedido es válido (producto está en la carta)
+def verificar_pedido(mensaje, menu):
+    productos_en_menu = menu['Producto'].str.lower().tolist()
+    for palabra in mensaje.lower().split():
+        if palabra in productos_en_menu:
+            return True
+    return False
+
+# Verificar distrito de reparto
+DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]
+
+def verificar_distrito(mensaje):
+    for distrito in DISTRITOS_REPARTO:
+        if distrito.lower() in mensaje.lower():
+            return distrito
+    return None
+
+# Guardar pedido con timestamp y monto
+def guardar_pedido(pedido, monto):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    nuevo_pedido = pd.DataFrame([[timestamp, pedido, monto]], columns=['Timestamp', 'Pedido', 'Monto'])
+    
+    if not os.path.exists('pedidos.csv'):
+        nuevo_pedido.to_csv('pedidos.csv', index=False)
+    else:
+        nuevo_pedido.to_csv('pedidos.csv', mode='a', header=False, index=False)
 
 # Inicializamos el historial de chat
 if "messages" not in st.session_state:
@@ -50,6 +76,11 @@ with st.container():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+# Mostrar menú
+menu = cargar_menu()
+st.write("Carta del restaurante:")
+st.dataframe(menu)
+
 # Mostrar campo de entrada de prompt
 prompt = st.chat_input("¿Qué quieres saber?")
 
@@ -66,26 +97,38 @@ if prompt and len(prompt) > 0:
         # Indicador de carga mientras se genera la respuesta
         with st.spinner("Generando respuesta..."):
             try:
-                chat_completion = client.chat.completions.create(
-                    model=parModelo,
-                    messages=[
-                        {
-                            "role": m["role"],
-                            "content": m["content"]
-                        }
-                        for m in st.session_state.messages
-                    ],  # Entregamos el historial de los mensajes
-                    stream=True
-                )
+                # Verificar si el pedido es válido
+                if verificar_pedido(prompt, menu):
+                    chat_completion = client.chat.completions.create(
+                        model=parModelo,
+                        messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
+                        stream=True
+                    )
 
-                # Mostrar respuesta del asistente en el contenedor de mensajes de chat
-                with st.chat_message("assistant"):            
-                    chat_responses_generator = generate_chat_responses(chat_completion)
-                    # Usamos st.write_stream para simular escritura
-                    full_response = st.write_stream(chat_responses_generator)
+                    # Mostrar respuesta del asistente en el contenedor de mensajes de chat
+                    with st.chat_message("assistant"):            
+                        chat_responses_generator = generate_chat_responses(chat_completion)
+                        # Simular escritura de la respuesta
+                        full_response = st.write_stream(chat_responses_generator)
 
-                # Agregar respuesta del asistente al historial de chat
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                    # Agregar respuesta del asistente al historial de chat
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+                    # Guardar pedido
+                    pedido = prompt.lower()
+                    item = menu[menu['Producto'].str.lower() == pedido]['Producto'].values[0]
+                    monto = menu[menu['Producto'].str.lower() == pedido]['Precio'].values[0]
+                    guardar_pedido(item, monto)
+
+                else:
+                    st.error("El producto solicitado no está en el menú. Por favor revisa la carta.")
+
+                # Verificar si se menciona un distrito válido para el reparto
+                distrito = verificar_distrito(prompt)
+                if distrito:
+                    st.write(f"Repartimos en tu distrito: {distrito}")
+                else:
+                    st.write("Lo siento, no repartimos en ese distrito.")
 
             except Exception as e:
                 st.error(f"Hubo un error al generar la respuesta: {e}")

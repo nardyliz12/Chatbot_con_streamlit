@@ -26,7 +26,7 @@ def cargar_menu():
 
 # Verificar si el pedido es válido (producto está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
-    productos_en_menu = menumenu_restaurante['Producto'].str.lower().tolist()
+    productos_en_menu = menu_restaurante['Producto'].str.lower().tolist()
     for palabra in mensaje.lower().split():
         if palabra in productos_en_menu:
             return True

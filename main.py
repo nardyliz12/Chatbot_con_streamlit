@@ -26,14 +26,14 @@ def cargar_menu():
 
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
-    platos_en_menu = menu_restaurante['Plato'].str.lower().tolist()  # Cambiamos 'Producto' por 'Plato'
-    for palabra in mensaje.lower().split():
-        if palabra in platos_en_menu:
+    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()  # Cambiamos 'Producto' por 'Plato'
+    for producto in productos_en_menu:
+        if producto in mensaje.lower():
             return True
     return False
 
 # Verificar distrito de reparto
-DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]
+DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]  # Asegúrate de que esto coincida con lo que necesitas
 
 def verificar_distrito(mensaje):
     for distrito in DISTRITOS_REPARTO:

@@ -9,7 +9,7 @@ from typing import Generator
 st.title("ChatMang - Chatbot de Restaurante")
 
 # Declaramos el cliente de Groq con la API Key desde el archivo .streamlit/secrets.toml
-client = Groq(api_key=st.secrets["APIKey"])
+client = Groq(api_key=st.secrets["APIKey_Groq"])
 
 # Lista de modelos para elegir
 modelos = ['llama3-8b-8192']

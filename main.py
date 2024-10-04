@@ -14,6 +14,7 @@ client = Groq(api_key=st.secrets["APIKey"])
 # Lista de modelos para elegir
 modelos = ['llama3-8b-8192']
 
+
 # Función para generar respuestas del chat carácter por carácter
 def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
     for chunk in chat_completion:

@@ -26,14 +26,14 @@ def cargar_menu():
 
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
-    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()
+    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()  # Cambiamos 'Producto' por 'Plato'
     for producto in productos_en_menu:
         if producto in mensaje.lower():
             return True
     return False
 
 # Verificar distrito de reparto
-DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]
+DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]  # Asegúrate de que esto coincida con lo que necesitas
 
 def verificar_distrito(mensaje):
     for distrito in DISTRITOS_REPARTO:
@@ -54,9 +54,8 @@ def guardar_pedido(pedido, monto):
 # Inicializamos el historial de chat
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.carta_mostrada = False  # Variable para controlar si se ha mostrado la carta
 
-# Manejo de cambios de modelo
+# Manejo de cambios de modelo: reiniciar historial si el modelo cambia
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = modelos[0]
 
@@ -65,18 +64,22 @@ parModelo = st.sidebar.selectbox('Modelos', options=modelos, index=modelos.index
 # Si el modelo cambia, reinicia el historial
 if parModelo != st.session_state.selected_model:
     st.session_state.selected_model = parModelo
-    st.session_state.messages = []  # Limpiar el historial de chat
+    st.session_state.messages = []  # Limpiar el historial de chat al cambiar de modelo
 
 # Botón para reiniciar el chat
 if st.sidebar.button("Reiniciar chat"):
     st.session_state.messages = []
-    st.session_state.carta_mostrada = False
 
 # Mostrar mensajes de chat desde el historial
 with st.container():
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+
+# Mostrar menú
+menu = cargar_menu()
+st.write("Carta del restaurante:")
+st.dataframe(menu)
 
 # Mostrar campo de entrada de prompt
 prompt = st.chat_input("¿Qué quieres saber?")
@@ -94,11 +97,6 @@ if prompt and len(prompt) > 0:
         # Indicador de carga mientras se genera la respuesta
         with st.spinner("Generando respuesta..."):
             try:
-                # Cargar el menú solo si no se ha mostrado antes
-                if not st.session_state.carta_mostrada:
-                    menu = cargar_menu()
-                    st.session_state.carta_mostrada = True  # Marcar que la carta se ha mostrado
-
                 # Verificar si el pedido es válido
                 if verificar_pedido(prompt, menu):
                     chat_completion = client.chat.completions.create(
@@ -108,8 +106,9 @@ if prompt and len(prompt) > 0:
                     )
 
                     # Mostrar respuesta del asistente en el contenedor de mensajes de chat
-                    with st.chat_message("assistant"):
+                    with st.chat_message("assistant"):            
                         chat_responses_generator = generate_chat_responses(chat_completion)
+                        # Simular escritura de la respuesta
                         full_response = st.write_stream(chat_responses_generator)
 
                     # Agregar respuesta del asistente al historial de chat
@@ -117,7 +116,7 @@ if prompt and len(prompt) > 0:
 
                     # Guardar pedido
                     pedido = prompt.lower()
-                    item = menu[menu['Plato'].str.lower() == pedido]['Plato'].values[0]
+                    item = menu[menu['Plato'].str.lower() == pedido]['Plato'].values[0]  # Cambiamos 'Producto' por 'Plato'
                     monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values[0]
                     guardar_pedido(item, monto)
 

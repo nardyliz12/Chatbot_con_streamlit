@@ -23,7 +23,13 @@ def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
 # Cargar el menú desde un archivo CSV
 @st.cache_data
 def cargar_menu():
-    return pd.read_csv('menu_restaurante.csv')
+    try:
+        menu = pd.read_csv('menu_restaurante.csv')
+        st.sidebar.write("Menú cargado:", menu.shape)
+        return menu
+    except FileNotFoundError:
+        st.error("No se pudo encontrar el archivo del menú. Por favor, verifica que 'menu_restaurante.csv' existe en el directorio del proyecto.")
+        return pd.DataFrame(columns=['Plato', 'Precio'])
 
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
@@ -99,7 +105,7 @@ if prompt:
             try:
                 if manejar_saludo(prompt):
                     respuesta = "¡Hola! Bienvenido a nuestro restaurante. ¿En qué puedo ayudarte? Puedes pedir nuestra carta si deseas ver el menú."
-                elif "menú" in prompt.lower() or "carta" in prompt.lower():
+                elif any(palabra in prompt.lower() for palabra in ["menú", "carta", "ver", "mostrar", "quiero"]):
                     st.write("Aquí tienes el menú del restaurante:")
                     st.write(menu)
                     respuesta = "Aquí tienes el menú del restaurante. ¿Qué te gustaría ordenar?"

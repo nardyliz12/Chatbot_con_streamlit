@@ -34,7 +34,11 @@ def cargar_menu():
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
     productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()
-    return any(producto in mensaje.lower() for producto in productos_en_menu)
+    # Recorre cada plato en el menú y verifica si está en el mensaje
+    for producto in productos_en_menu:
+        if producto in mensaje.lower():
+            return producto
+    return None
 
 # Verificar distrito de reparto
 DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]
@@ -105,18 +109,23 @@ if prompt:
             try:
                 if manejar_saludo(prompt):
                     respuesta = "¡Hola! Bienvenido a nuestro restaurante. ¿En qué puedo ayudarte? Puedes pedir nuestra carta si deseas ver el menú."
-                elif any(palabra in prompt.lower() for palabra in ["menú", "carta", "ver", "mostrar", "quiero"]):
-                    st.write("Aquí tienes el menú del restaurante:")
-                    st.write(menu)
-                    respuesta = "Aquí tienes el menú del restaurante. ¿Qué te gustaría ordenar?"
-                elif verificar_pedido(prompt, menu):
-                    pedido = prompt.lower()
-                    item = menu[menu['Plato'].str.lower().str.contains(pedido)]['Plato'].values[0]
-                    monto = menu[menu['Plato'].str.lower().str.contains(pedido)]['Precio'].values[0]
-                    guardar_pedido(item, monto)
-                    respuesta = f"¡Excelente elección! Has pedido {item} por ${monto}. ¿Deseas algo más?"
+                elif any(palabra in prompt.lower() for palabra in ["menú", "carta", "ver", "mostrar"]):
+                    if not st.session_state.carta_mostrada:
+                        st.write("Aquí tienes el menú del restaurante:")
+                        st.write(menu)
+                        respuesta = "Aquí tienes el menú del restaurante. ¿Qué te gustaría ordenar?"
+                        st.session_state.carta_mostrada = True
+                    else:
+                        respuesta = "Ya te mostré el menú. ¿Te gustaría pedir algo?"
                 else:
-                    respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
+                    pedido = verificar_pedido(prompt, menu)
+                    if pedido:
+                        # Busca el precio del pedido
+                        monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values[0]
+                        guardar_pedido(pedido, monto)
+                        respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
+                    else:
+                        respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
 
                 # Verificar si se menciona un distrito válido para el reparto
                 distrito = verificar_distrito(prompt)

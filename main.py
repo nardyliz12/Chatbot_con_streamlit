@@ -26,14 +26,14 @@ def cargar_menu():
 
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
-    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()  # Cambiamos 'Producto' por 'Plato'
+    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()
     for producto in productos_en_menu:
         if producto in mensaje.lower():
             return True
     return False
 
 # Verificar distrito de reparto
-DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]  # Asegúrate de que esto coincida con lo que necesitas
+DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]
 
 def verificar_distrito(mensaje):
     for distrito in DISTRITOS_REPARTO:
@@ -64,7 +64,7 @@ parModelo = st.sidebar.selectbox('Modelos', options=modelos, index=modelos.index
 # Si el modelo cambia, reinicia el historial
 if parModelo != st.session_state.selected_model:
     st.session_state.selected_model = parModelo
-    st.session_state.messages = []  # Limpiar el historial de chat al cambiar de modelo
+    st.session_state.messages = []
 
 # Botón para reiniciar el chat
 if st.sidebar.button("Reiniciar chat"):
@@ -75,11 +75,6 @@ with st.container():
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
-
-# Mostrar menú
-menu = cargar_menu()
-st.write("Carta del restaurante:")
-st.dataframe(menu)
 
 # Mostrar campo de entrada de prompt
 prompt = st.chat_input("¿Qué quieres saber?")
@@ -97,8 +92,15 @@ if prompt and len(prompt) > 0:
         # Indicador de carga mientras se genera la respuesta
         with st.spinner("Generando respuesta..."):
             try:
+                # Verificar si el usuario pidió la carta o el menú
+                if "carta" in prompt.lower() or "menú" in prompt.lower():
+                    # Mostrar menú solo cuando se solicita
+                    menu = cargar_menu()
+                    st.write("Aquí está la carta del restaurante:")
+                    st.dataframe(menu)
+
                 # Verificar si el pedido es válido
-                if verificar_pedido(prompt, menu):
+                elif verificar_pedido(prompt, cargar_menu()):
                     chat_completion = client.chat.completions.create(
                         model=parModelo,
                         messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
@@ -116,8 +118,8 @@ if prompt and len(prompt) > 0:
 
                     # Guardar pedido
                     pedido = prompt.lower()
-                    item = menu[menu['Plato'].str.lower() == pedido]['Plato'].values[0]  # Cambiamos 'Producto' por 'Plato'
-                    monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values[0]
+                    item = cargar_menu()[cargar_menu()['Plato'].str.lower() == pedido]['Plato'].values[0]
+                    monto = cargar_menu()[cargar_menu()['Plato'].str.lower() == pedido]['Precio'].values[0]
                     guardar_pedido(item, monto)
 
                 else:

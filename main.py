@@ -34,7 +34,6 @@ def cargar_menu():
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
     productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()
-    # Recorre cada plato en el menú y verifica si está en el mensaje
     for producto in productos_en_menu:
         if producto in mensaje.lower():
             return producto
@@ -107,9 +106,10 @@ if prompt:
         # Indicador de carga mientras se genera la respuesta
         with st.spinner("Generando respuesta..."):
             try:
+                # Mostrar el menú si el usuario menciona "menú" o "carta" en su mensaje
                 if manejar_saludo(prompt):
                     respuesta = "¡Hola! Bienvenido a nuestro restaurante. ¿En qué puedo ayudarte? Puedes pedir nuestra carta si deseas ver el menú."
-                elif any(palabra in prompt.lower() for palabra in ["menú", "carta", "ver", "mostrar"]):
+                elif "menú" in prompt.lower() or "carta" in prompt.lower():
                     if not st.session_state.carta_mostrada:
                         st.write("Aquí tienes el menú del restaurante:")
                         st.write(menu)
@@ -121,9 +121,13 @@ if prompt:
                     pedido = verificar_pedido(prompt, menu)
                     if pedido:
                         # Busca el precio del pedido
-                        monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values[0]
-                        guardar_pedido(pedido, monto)
-                        respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
+                        monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values
+                        if monto:
+                            monto = monto[0]
+                            guardar_pedido(pedido, monto)
+                            respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
+                        else:
+                            respuesta = "Lo siento, ocurrió un error al procesar el precio del pedido."
                     else:
                         respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
 

@@ -33,8 +33,11 @@ def cargar_menu():
 
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
-    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()
-    return any(producto in mensaje.lower() for producto in productos_en_menu)
+    palabras_mensaje = mensaje.lower().split()
+    for plato in menu_restaurante['Plato'].str.lower():
+        if any(palabra in plato for palabra in palabras_mensaje):
+            return True
+    return False
 
 # Verificar distrito de reparto
 DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]
@@ -89,6 +92,7 @@ prompt = st.chat_input("¿Qué quieres saber?")
 
 # Cargar el menú
 menu = cargar_menu()
+st.sidebar.write("Contenido del menú:", menu.to_dict('records'))
 
 # Validación del prompt: no vacío y no demasiado largo
 if prompt:
@@ -110,11 +114,17 @@ if prompt:
                     st.write(menu)
                     respuesta = "Aquí tienes el menú del restaurante. ¿Qué te gustaría ordenar?"
                 elif verificar_pedido(prompt, menu):
-                    pedido = prompt.lower()
-                    item = menu[menu['Plato'].str.lower().str.contains(pedido)]['Plato'].values[0]
-                    monto = menu[menu['Plato'].str.lower().str.contains(pedido)]['Precio'].values[0]
-                    guardar_pedido(item, monto)
-                    respuesta = f"¡Excelente elección! Has pedido {item} por ${monto}. ¿Deseas algo más?"
+                    palabras_pedido = prompt.lower().split()
+                    platos_encontrados = menu[menu['Plato'].str.lower().apply(lambda x: any(palabra in x for palabra in palabras_pedido))]
+                    if not platos_encontrados.empty:
+                        item = platos_encontrados['Plato'].values[0]
+                        monto = platos_encontrados['Precio'].values[0]
+                        cantidad = next((int(word) for word in palabras_pedido if word.isdigit()), 1)
+                        monto_total = monto * cantidad
+                        guardar_pedido(f"{cantidad} x {item}", monto_total)
+                        respuesta = f"¡Excelente elección! Has pedido {cantidad} {item} por ${monto_total:.2f}. ¿Deseas algo más?"
+                    else:
+                        respuesta = "Lo siento, no pude encontrar ese plato en nuestro menú. ¿Podrías verificar el nombre o pedir la carta para ver nuestras opciones?"
                 else:
                     respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
 

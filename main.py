@@ -54,8 +54,9 @@ def guardar_pedido(pedido, monto):
 # Inicializamos el historial de chat
 if "messages" not in st.session_state:
     st.session_state.messages = []
+    st.session_state.carta_mostrada = False  # Variable para controlar si se ha mostrado la carta
 
-# Manejo de cambios de modelo: reiniciar historial si el modelo cambia
+# Manejo de cambios de modelo
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = modelos[0]
 
@@ -64,11 +65,12 @@ parModelo = st.sidebar.selectbox('Modelos', options=modelos, index=modelos.index
 # Si el modelo cambia, reinicia el historial
 if parModelo != st.session_state.selected_model:
     st.session_state.selected_model = parModelo
-    st.session_state.messages = []
+    st.session_state.messages = []  # Limpiar el historial de chat
 
 # Botón para reiniciar el chat
 if st.sidebar.button("Reiniciar chat"):
     st.session_state.messages = []
+    st.session_state.carta_mostrada = False
 
 # Mostrar mensajes de chat desde el historial
 with st.container():
@@ -92,15 +94,13 @@ if prompt and len(prompt) > 0:
         # Indicador de carga mientras se genera la respuesta
         with st.spinner("Generando respuesta..."):
             try:
-                # Verificar si el usuario pidió la carta o el menú
-                if "carta" in prompt.lower() or "menú" in prompt.lower():
-                    # Mostrar menú solo cuando se solicita
+                # Cargar el menú solo si no se ha mostrado antes
+                if not st.session_state.carta_mostrada:
                     menu = cargar_menu()
-                    st.write("Aquí está la carta del restaurante:")
-                    st.dataframe(menu)
+                    st.session_state.carta_mostrada = True  # Marcar que la carta se ha mostrado
 
                 # Verificar si el pedido es válido
-                elif verificar_pedido(prompt, cargar_menu()):
+                if verificar_pedido(prompt, menu):
                     chat_completion = client.chat.completions.create(
                         model=parModelo,
                         messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
@@ -108,9 +108,8 @@ if prompt and len(prompt) > 0:
                     )
 
                     # Mostrar respuesta del asistente en el contenedor de mensajes de chat
-                    with st.chat_message("assistant"):            
+                    with st.chat_message("assistant"):
                         chat_responses_generator = generate_chat_responses(chat_completion)
-                        # Simular escritura de la respuesta
                         full_response = st.write_stream(chat_responses_generator)
 
                     # Agregar respuesta del asistente al historial de chat
@@ -118,8 +117,8 @@ if prompt and len(prompt) > 0:
 
                     # Guardar pedido
                     pedido = prompt.lower()
-                    item = cargar_menu()[cargar_menu()['Plato'].str.lower() == pedido]['Plato'].values[0]
-                    monto = cargar_menu()[cargar_menu()['Plato'].str.lower() == pedido]['Precio'].values[0]
+                    item = menu[menu['Plato'].str.lower() == pedido]['Plato'].values[0]
+                    monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values[0]
                     guardar_pedido(item, monto)
 
                 else:

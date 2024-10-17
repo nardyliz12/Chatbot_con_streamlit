@@ -14,25 +14,20 @@ api_key = "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"
 client = Groq(api_key=api_key)
 
 # Lista de modelos para elegir
-modelos=['llama3-8b-8192','llama3-70b-8192','mixtral-8x7b-32768']
+modelos = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768']
 
-
-# Función para generar respuestas del chat carácter por carácter
-def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
-    for chunk in chat_completion:
-        if chunk.choices[0].delta.content:
-            yield chunk.choices[0].delta.content
-
-# Cargar el menú desde un archivo CSV
+# Cargar los menús desde archivos CSV
 @st.cache_data
-def cargar_menu():
+def cargar_menus():
     try:
-        menu = pd.read_csv('menu_platos.csv')
-        st.sidebar.write("Menú cargado:", menu.shape)
-        return menu
+        platos = pd.read_csv('menu_platos.csv')
+        bebidas = pd.read_csv('menu_bebidas.csv')
+        postres = pd.read_csv('menu_postres.csv')
+        st.sidebar.write("Menú cargado:", platos.shape, bebidas.shape, postres.shape)
+        return platos, bebidas, postres
     except FileNotFoundError:
-        st.error("No se pudo encontrar el archivo del menú.")
-        return pd.DataFrame(columns=['Plato', 'Precio'])
+        st.error("No se pudo encontrar uno de los archivos del menú.")
+        return pd.DataFrame(columns=['Plato', 'Precio']), pd.DataFrame(columns=['Bebida', 'Precio']), pd.DataFrame(columns=['Postre', 'Precio'])
 
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
@@ -43,7 +38,18 @@ def verificar_pedido(mensaje, menu_restaurante):
     return None
 
 # Verificar distrito de reparto
-DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]
+DISTRITOS_REPARTO = []
+
+@st.cache_data
+def cargar_distritos():
+    try:
+        distritos = pd.read_csv('distritos.csv')
+        return distritos['Distrito'].tolist()
+    except FileNotFoundError:
+        st.error("No se pudo encontrar el archivo de distritos.")
+        return []
+
+DISTRITOS_REPARTO = cargar_distritos()
 
 def verificar_distrito(mensaje):
     return next((distrito for distrito in DISTRITOS_REPARTO if distrito.lower() in mensaje.lower()), None)
@@ -94,37 +100,34 @@ with st.container():
 prompt = st.chat_input("¿Qué quieres saber?")
 
 # Cargar el menú
-menu = cargar_menu()
+menu_platos, menu_bebidas, menu_postres = cargar_menus()
 
 # Validación del prompt: no vacío y no demasiado largo
 if prompt:
     if len(prompt) > 2000:
         st.error("El mensaje es demasiado largo. Por favor, acórtalo.")
     else:
-        # Mostrar mensaje de usuario en el contenedor de mensajes de chat
         st.chat_message("user").markdown(prompt)
-        # Agregar mensaje de usuario al historial de chat
         st.session_state.messages.append({"role": "user", "content": prompt})
 
-        # Indicador de carga mientras se genera la respuesta
         with st.spinner("Generando respuesta..."):
             try:
-                # Mostrar el menú si el usuario menciona "menú" o "carta" en su mensaje
                 if manejar_saludo(prompt):
-                    respuesta = "Bienvenido a BotRestaurant, tu destino para saborear lo mejor de la comida asiática! Comienza tu aventura y descubre los deliciosos platos que tenemos para ofrecerte de la gastronomia Asiática. ¡Estamos aquí para ayudarte a disfrutar de una experiencia culinaria única y auténtica! ¿En qué puedo ayudarte? Puedes pedir nuestra carta si deseas ver el menú."
+                    respuesta = "¡Bienvenido a BotRestaurant, tu destino para saborear lo mejor de la comida asiática! ¿En qué puedo ayudarte?, ¿Deseas ver el menu?"
                 elif "menú" in prompt.lower() or "carta" in prompt.lower():
                     if not st.session_state.carta_mostrada:
                         st.write("Aquí tienes el menú del restaurante:")
-                        st.write(menu)
-                        respuesta = "Aquí tienes el menú del restaurante. ¿Qué te gustaría ordenar?"
+                        st.write(menu_platos)
+                        st.write(menu_bebidas)
+                        st.write(menu_postres)
+                        respuesta = "Aquí tienes el menú completo. ¿Qué te gustaría ordenar?"
                         st.session_state.carta_mostrada = True
                     else:
                         respuesta = "Ya te mostré el menú. ¿Te gustaría pedir algo?"
                 else:
-                    pedido = verificar_pedido(prompt, menu)
+                    pedido = verificar_pedido(prompt, menu_platos)
                     if pedido:
-                        # Busca el precio del pedido
-                        monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values
+                        monto = menu_platos[menu_platos['Plato'].str.lower() == pedido]['Precio'].values
                         if monto:
                             monto = monto[0]
                             guardar_pedido(pedido, monto)
@@ -134,16 +137,13 @@ if prompt:
                     else:
                         respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
 
-                # Verificar si se menciona un distrito válido para el reparto
                 distrito = verificar_distrito(prompt)
                 if distrito:
                     respuesta += f" Y sí, repartimos en tu distrito: {distrito}."
                 elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
                     respuesta += " Lo siento, no repartimos en ese distrito. Nuestras zonas de reparto son: " + ", ".join(DISTRITOS_REPARTO)
 
-                # Mostrar respuesta del asistente
                 st.chat_message("assistant").markdown(respuesta)
-                # Agregar respuesta del asistente al historial de chat
                 st.session_state.messages.append({"role": "assistant", "content": respuesta})
 
             except Exception as e:

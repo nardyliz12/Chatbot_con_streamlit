@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -109,13 +108,6 @@ if prompt:
         # Indicador de carga mientras se genera la respuesta
         with st.spinner("Generando respuesta..."):
             try:
-                # Generar respuesta del modelo Groq
-                chat_completion = client.chat.create(
-                    model=st.session_state.selected_model,
-                    messages=st.session_state.messages,
-                    stream=True
-                )
-                
                 # Mostrar el menú si el usuario menciona "menú" o "carta" en su mensaje
                 if manejar_saludo(prompt):
                     respuesta = "¡Hola! Bienvenido a nuestro restaurante. ¿En qué puedo ayudarte? Puedes pedir nuestra carta si deseas ver el menú."
@@ -149,9 +141,7 @@ if prompt:
                     respuesta += " Lo siento, no repartimos en ese distrito. Nuestras zonas de reparto son: " + ", ".join(DISTRITOS_REPARTO)
 
                 # Mostrar respuesta del asistente
-                for chat_response in generate_chat_responses(chat_completion):
-                    st.chat_message("assistant").markdown(chat_response)
-
+                st.chat_message("assistant").markdown(respuesta)
                 # Agregar respuesta del asistente al historial de chat
                 st.session_state.messages.append({"role": "assistant", "content": respuesta})
 
@@ -161,4 +151,3 @@ else:
     if "messages" not in st.session_state:
         st.chat_message("assistant").markdown("¡Bienvenido! ¿En qué puedo ayudarte hoy?")
         st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido! ¿En qué puedo ayudarte hoy?"})
-

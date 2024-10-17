@@ -1,4 +1,4 @@
-Uimport streamlit as st
+import streamlit as st
 import pandas as pd
 from datetime import datetime
 from groq import Groq

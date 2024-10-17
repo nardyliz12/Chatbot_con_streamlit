@@ -4,6 +4,7 @@ from datetime import datetime
 from groq import Groq
 import re
 from copy import deepcopy
+import os
 
 # Título de la aplicación
 st.title("ChatMang - Comida Asiática")
@@ -22,13 +23,17 @@ intro = """¡Bienvenido a Sazón Bot, el lugar donde todos tus antojos de almuer
 Comienza a chatear con Sazón Bot y descubre qué puedes pedir, cuánto cuesta y cómo realizar tu pago. ¡Estamos aquí para ayudarte a disfrutar del mejor almuerzo!"""
 st.markdown(intro)
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
+
 # Cargar menú y distritos desde archivos CSV
 def load_menu(CSV_files):
-    menu = pd.read_csv(CSV_files)
+    file_path = os.path.join(base_dir, CSV_files)
+    menu = pd.read_csv(file_path)
     return menu
 
-def load_districts(CSV_files):
-    districts = pd.read_csv(CSV_files)
+def load_districts(csv_file):
+    file_path = os.path.join(base_dir, CSV_files)
+    districts = pd.read_csv(file_path)
     return districts['Distrito'].tolist()
 
 def format_menu(platos, bebidas, postres):

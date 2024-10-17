@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -8,9 +7,11 @@ from typing import Generator
 # Título de la aplicación
 st.title("ChatMang - Comida Asiática")
 
-# Declaramos el cliente de Groq con la API Key desde el archivo .streamlit/secrets.toml
-client = Groq(api_key=st.secrets["key"])
+# Define la API Key directamente en el código
+api_key = "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"
 
+# Inicializamos el cliente de Groq con la API Key
+client = Groq(api_key=api_key)
 
 # Lista de modelos para elegir
 modelos = ['llama3-8b-8192']

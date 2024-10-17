@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 from groq import Groq
 from typing import Generator
+import os
 
 # Título de la aplicación
 st.title("ChatMang - Comida Asiática")
@@ -15,7 +16,6 @@ client = Groq(api_key=api_key)
 
 # Lista de modelos para elegir
 modelos=['llama3-8b-8192','llama3-70b-8192','mixtral-8x7b-32768']
-
 
 # Función para generar respuestas del chat carácter por carácter
 def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
@@ -32,7 +32,7 @@ def cargar_menu():
         return menu
     except FileNotFoundError:
         st.error("No se pudo encontrar el archivo del menú. Por favor, verifica que 'menu_restaurante.csv' existe en el directorio del proyecto.")
-        return pd.DataFrame(columns=['Plato', 'Precio'])
+        return pd.DataFrame(columns=['Plato', 'Precio (S/)'])
 
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
@@ -124,11 +124,11 @@ if prompt:
                     pedido = verificar_pedido(prompt, menu)
                     if pedido:
                         # Busca el precio del pedido
-                        monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values
-                        if monto:
+                        monto = menu[menu['Plato'].str.lower() == pedido]['Precio (S/)'].values
+                        if len(monto) > 0:
                             monto = monto[0]
                             guardar_pedido(pedido, monto)
-                            respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
+                            respuesta = f"¡Excelente elección! Has pedido {pedido} por S/{monto}. ¿Deseas algo más?"
                         else:
                             respuesta = "Lo siento, ocurrió un error al procesar el precio del pedido."
                     else:

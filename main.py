@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from groq import Groq
-from typing import Generator
+import re
+from copy import deepcopy
 
 # Título de la aplicación
 st.title("ChatMang - Comida Asiática")
@@ -22,27 +23,41 @@ Comienza a chatear con Sazón Bot y descubre qué puedes pedir, cuánto cuesta y
 st.markdown(intro)
 
 # Cargar menú y distritos desde archivos CSV
-def load_menu(csv_file):
-    menu = pd.read_csv(csv_file)
+def load_menu(CSV_files):
+    menu = pd.read_csv(CSV_files)
     return menu
 
-def load_districts(csv_file):
-    districts = pd.read_csv(csv_file)
+def load_districts(CSV_files):
+    districts = pd.read_csv(CSV_files)
     return districts['Distrito'].tolist()
 
-def format_menu(menu):
-    if menu.empty:
-        return "No hay platos disponibles."
-
+def format_menu(platos, bebidas, postres):
     formatted_menu = []
-    for idx, row in menu.iterrows():
+    
+    formatted_menu.append("**Platos:**")
+    for idx, row in platos.iterrows():
         formatted_menu.append(
             f"{row['Plato']}\n{row['Descripción']}\n*Precio:* S/{row['Precio']}"
         )
+    
+    formatted_menu.append("\n**Bebidas:**")
+    for idx, row in bebidas.iterrows():
+        formatted_menu.append(
+            f"{row['Bebida']}\n*Precio:* S/{row['Precio']}"
+        )
+    
+    formatted_menu.append("\n**Postres:**")
+    for idx, row in postres.iterrows():
+        formatted_menu.append(
+            f"{row['Postre']}\n*Precio:* S/{row['Precio']}"
+        )
+    
     return "\n\n".join(formatted_menu)
 
 # Cargar el menú y distritos
-menu = load_menu("menu_platos.csv")
+platos = load_menu("menu_platos.csv")
+bebidas = load_menu("menu_bebidas.csv")
+postres = load_menu("menu_postres.csv")
 districts = load_districts("distritos.csv")
 
 # Estado inicial del chatbot
@@ -50,7 +65,7 @@ initial_state = [
     {"role": "system", "content": "You are SazónBot. A friendly assistant helping customers with their lunch orders."},
     {
         "role": "assistant",
-        "content": f"👨‍🍳¿Qué te puedo ofrecer?\n\nEste es el menú del día:\n\n{format_menu(menu)}",
+        "content": f"👨‍🍳¿Qué te puedo ofrecer?\n\nEste es el menú del día:\n\n{format_menu(platos, bebidas, postres)}",
     },
 ]
 
@@ -60,27 +75,37 @@ def save_order(order, total_price):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"{timestamp}, {order}, {total_price}\n")
 
-def validate_order(prompt, menu):
+def validate_order(prompt, platos, bebidas, postres):
     order_details = {}
     total_price = 0
-    pattern = r'(\d+)\s*(?:platos|plato)?\s*([a-zA-Z\s]+)'   # Regex actualizado
+    pattern = r'(\d+)\s*(?:platos|plato|bebidas|bebida|postres|postre)?\s*([a-zA-Z\s]+)'
 
-    prompt = prompt.replace('\n', '').lower().strip()  # Normalizar el prompt a minúsculas
+    prompt = prompt.replace('\n', '').lower().strip()
     matches = re.findall(pattern, prompt)
 
-    for quantity_str, dish_name in matches:
+    for quantity_str, item_name in matches:
         try:
             quantity = int(quantity_str.strip())
-            dish_name = dish_name.strip()
-            # Normalizar el nombre del plato
-            normalized_dish_name = dish_name.lower()
-            # Comparar con el menú
-            if normalized_dish_name in menu['Plato'].str.lower().values:
-                price = menu.loc[menu['Plato'].str.lower() == normalized_dish_name, 'Precio'].values[0]
-                order_details[dish_name] = quantity
+            item_name = item_name.strip()
+            normalized_item_name = item_name.lower()
+            
+            # Buscar en platos
+            if normalized_item_name in platos['Plato'].str.lower().values:
+                price = platos.loc[platos['Plato'].str.lower() == normalized_item_name, 'Precio'].values[0]
+                order_details[item_name] = quantity
+                total_price += price * quantity
+            # Buscar en bebidas
+            elif normalized_item_name in bebidas['Bebida'].str.lower().values:
+                price = bebidas.loc[bebidas['Bebida'].str.lower() == normalized_item_name, 'Precio'].values[0]
+                order_details[item_name] = quantity
+                total_price += price * quantity
+            # Buscar en postres
+            elif normalized_item_name in postres['Postre'].str.lower().values:
+                price = postres.loc[postres['Postre'].str.lower() == normalized_item_name, 'Precio'].values[0]
+                order_details[item_name] = quantity
                 total_price += price * quantity
             else:
-                return None, None  # Plato no existe
+                return None, None  # Item no existe
         except ValueError:
             return None, None
 
@@ -111,12 +136,12 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 def format_order_table(order_details):
-    table = "| Cantidad | Plato |\n"
+    table = "| Cantidad | Item |\n"
     table += "|----------|-------|\n"
     
-    for dish, quantity in order_details.items():
-        if dish and quantity:
-            table += f"| {quantity}        | {dish}  |\n"
+    for item, quantity in order_details.items():
+        if item and quantity:
+            table += f"| {quantity}        | {item}  |\n"
     
     return table
 
@@ -128,7 +153,7 @@ if user_input := st.chat_input("¿Qué te gustaría pedir?"):
     # Llamar a Groq para obtener una respuesta
     chat_completion = client.chat.completions.create(
         messages=[{"role": "system", "content": "You are a helpful assistant for a food ordering service."},
-                  {"role": "user", "content": f"Extrae la cantidad y el plato de la siguiente solicitud: '{user_input}'.Limitate a solo devolver la cantidad y el plato de la solicitud sin un caracter adicional."}],
+                  {"role": "user", "content": f"Extrae la cantidad y el item de la siguiente solicitud: '{user_input}'.Limitate a solo devolver la cantidad y el item de la solicitud sin un caracter adicional."}],
         model="llama3-8b-8192",
         temperature=0.5,
         max_tokens=150,
@@ -140,7 +165,7 @@ if user_input := st.chat_input("¿Qué te gustaría pedir?"):
     parsed_message = chat_completion.choices[0].message.content.strip()
     
     # Validar el pedido del usuario
-    order_details, total_price = validate_order(parsed_message, menu)
+    order_details, total_price = validate_order(parsed_message, platos, bebidas, postres)
 
     if order_details:
         # Guardar el pedido en el estado
@@ -150,8 +175,8 @@ if user_input := st.chat_input("¿Qué te gustaría pedir?"):
         # Solicitar confirmación del pedido
         response_text = f"Tu pedido ha sido registrado:\n\n{format_order_table(order_details)}\n\n¿Está correcto? (Sí o No)"
     else:
-        # Si el plato no existe, mostrar el menú de nuevo
-        response_text = f"Uno o más platos no están disponibles. Aquí está el menú otra vez:\n\n{format_menu(menu)}"
+        # Si el item no existe, mostrar el menú de nuevo
+        response_text = f"Uno o más items no están disponibles. Aquí está el menú otra vez:\n\n{format_menu(platos, bebidas, postres)}"
 
     # Mostrar la respuesta del asistente
     with st.chat_message("assistant", avatar="🍲"):

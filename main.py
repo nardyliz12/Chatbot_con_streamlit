@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 from groq import Groq
 from typing import Generator
+import os
 
 # Título de la aplicación
 st.title("BotRestaurant - 5 Star Michilini")
@@ -36,21 +37,6 @@ def verificar_pedido(mensaje, menu_restaurante):
         if producto in mensaje.lower():
             return producto
     return None
-
-# Manejo de la lógica del pedido
-pedido = verificar_pedido(prompt, menu_platos)
-if pedido:
-    # Busca el precio del pedido
-    monto = menu_platos.loc[menu_platos['Plato'].str.lower() == pedido, 'Precio']
-    if not monto.empty:
-        monto = monto.values[0]
-        guardar_pedido(pedido, monto)
-        respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
-    else:
-        respuesta = "Lo siento, ocurrió un error al procesar el precio del pedido."
-else:
-    respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
-
 
 # Verificar distrito de reparto
 DISTRITOS_REPARTO = []
@@ -111,7 +97,7 @@ with st.container():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-# Mostrar campo de entrada de prompt
+# Mostrar campo de entrada de prompt (inicialización antes del uso)
 prompt = st.chat_input("¿Qué quieres saber?")
 
 # Cargar el menú

@@ -14,7 +14,8 @@ api_key = "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"
 client = Groq(api_key=api_key)
 
 # Lista de modelos para elegir
-modelos = ['llama3-8b-8192']
+modelos=['llama3-8b-8192','llama3-70b-8192','mixtral-8x7b-32768']
+
 
 # Función para generar respuestas del chat carácter por carácter
 def generate_chat_responses(chat_completion) -> Generator[str, None, None]:

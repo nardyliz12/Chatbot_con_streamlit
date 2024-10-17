@@ -1,22 +1,20 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 from datetime import datetime
-from copy import deepcopy
 from groq import Groq
-import re
+from typing import Generator
 
+# Título de la aplicación
+st.title("ChatMang - Comida Asiática")
 
-GROQ_API_KEY = "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"
-# Inicializar el cliente de Groq
+# Define la API Key directamente en el código
+api_key = "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"
+
 # Inicializamos el cliente de Groq con la API Key
-client = Groq(GROQ_API_KEY=GROQ_API_KEY)
+client = Groq(api_key=api_key)
 
 # Lista de modelos para elegir
 modelos=['llama3-8b-8192','llama3-70b-8192','mixtral-8x7b-32768']
-
-# Configuración inicial de la página
-st.set_page_config(page_title="SazónBot", page_icon=":pot_of_food:")
-st.title("🍲 SazónBot")
 
 # Mensaje de bienvenida
 intro = """¡Bienvenido a Sazón Bot, el lugar donde todos tus antojos de almuerzo se hacen realidad!

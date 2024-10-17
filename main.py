@@ -123,7 +123,7 @@ if prompt:
                     pedido = verificar_pedido(prompt, menu)
                     if pedido:
                         # Busca el precio del pedido
-                        monto = menu[menu['Plato'].str.lower() == [pedido]['Precio'].values
+                        monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values
                         if monto:
                             monto = monto[0]
                             guardar_pedido(pedido, monto)

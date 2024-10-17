@@ -27,7 +27,7 @@ def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
 @st.cache_data
 def cargar_menu():
     try:
-        menu = pd.read_csv('menu_restaurante.csv')
+        menu = pd.read_csv('menu_platos.csv')
         st.sidebar.write("Menú cargado:", menu.shape)
         return menu
     except FileNotFoundError:

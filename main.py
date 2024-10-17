@@ -1,4 +1,4 @@
-import streamlit as st
+Uimport streamlit as st
 import pandas as pd
 from datetime import datetime
 from groq import Groq
@@ -42,7 +42,7 @@ def format_menu(menu):
     return "\n\n".join(formatted_menu)
 
 # Cargar el menú y distritos
-menu = load_menu("carta.csv")
+menu = load_menu("menu_platos.csv")
 districts = load_districts("distritos.csv")
 
 # Estado inicial del chatbot

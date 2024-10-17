@@ -5,10 +5,11 @@ from copy import deepcopy
 from groq import Groq
 import re
 
-# Inicializar el cliente de Groq
-client = Groq(
-    api_key=st.secrets["GROQ_API_KEY"],
-)
+ Define la API Key directamente en el código
+api_key = "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"
+
+# Inicializamos el cliente de Groq con la API Key
+client = Groq(api_key=api_key)
 
 # Configuración inicial de la página
 st.set_page_config(page_title="SazónBot", page_icon=":pot_of_food:")

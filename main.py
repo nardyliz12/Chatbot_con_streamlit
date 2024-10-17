@@ -37,6 +37,21 @@ def verificar_pedido(mensaje, menu_restaurante):
             return producto
     return None
 
+# Manejo de la lógica del pedido
+pedido = verificar_pedido(prompt, menu_platos)
+if pedido:
+    # Busca el precio del pedido
+    monto = menu_platos.loc[menu_platos['Plato'].str.lower() == pedido, 'Precio']
+    if not monto.empty:
+        monto = monto.values[0]
+        guardar_pedido(pedido, monto)
+        respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
+    else:
+        respuesta = "Lo siento, ocurrió un error al procesar el precio del pedido."
+else:
+    respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
+
+
 # Verificar distrito de reparto
 DISTRITOS_REPARTO = []
 

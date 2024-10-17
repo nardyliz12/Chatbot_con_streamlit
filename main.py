@@ -31,7 +31,7 @@ def cargar_menu():
         st.sidebar.write("Menú cargado:", menu.shape)
         return menu
     except FileNotFoundError:
-        st.error("No se pudo encontrar el archivo del menú. Por favor, verifica que 'menu_restaurante.csv' existe en el directorio del proyecto.")
+        st.error("No se pudo encontrar el archivo del menú.")
         return pd.DataFrame(columns=['Plato', 'Precio'])
 
 # Verificar si el pedido es válido (plato está en la carta)
@@ -111,7 +111,7 @@ if prompt:
             try:
                 # Mostrar el menú si el usuario menciona "menú" o "carta" en su mensaje
                 if manejar_saludo(prompt):
-                    respuesta = "¡Hola! Bienvenido a nuestro restaurante. ¿En qué puedo ayudarte? Puedes pedir nuestra carta si deseas ver el menú."
+                    respuesta = "Bienvenido a BotRestaurant, tu destino para saborear lo mejor de la comida asiática! Comienza tu aventura y descubre los deliciosos platos que tenemos para ofrecerte de la gastronomia Asiática. ¡Estamos aquí para ayudarte a disfrutar de una experiencia culinaria única y auténtica! ¿En qué puedo ayudarte? Puedes pedir nuestra carta si deseas ver el menú."
                 elif "menú" in prompt.lower() or "carta" in prompt.lower():
                     if not st.session_state.carta_mostrada:
                         st.write("Aquí tienes el menú del restaurante:")

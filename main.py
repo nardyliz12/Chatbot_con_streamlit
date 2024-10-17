@@ -5,10 +5,14 @@ from copy import deepcopy
 from groq import Groq
 import re
 
+
+GROQ_API_KEY = "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"
 # Inicializar el cliente de Groq
-client = Groq(
-    api_key=st.secrets["GROQ_API_KEY"],
-)
+# Inicializamos el cliente de Groq con la API Key
+client = Groq(GROQ_API_KEY=GROQ_API_KEY)
+
+# Lista de modelos para elegir
+modelos=['llama3-8b-8192','llama3-70b-8192','mixtral-8x7b-32768']
 
 # Configuración inicial de la página
 st.set_page_config(page_title="SazónBot", page_icon=":pot_of_food:")

@@ -2,9 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from groq import Groq
-import re
-from copy import deepcopy
-import os
+from typing import Generator
 
 # Título de la aplicación
 st.title("ChatMang - Comida Asiática")
@@ -18,205 +16,139 @@ client = Groq(api_key=api_key)
 # Lista de modelos para elegir
 modelos=['llama3-8b-8192','llama3-70b-8192','mixtral-8x7b-32768']
 
-# Mensaje de bienvenida
-intro = """¡Bienvenido a Sazón Bot, el lugar donde todos tus antojos de almuerzo se hacen realidad!
-Comienza a chatear con Sazón Bot y descubre qué puedes pedir, cuánto cuesta y cómo realizar tu pago. ¡Estamos aquí para ayudarte a disfrutar del mejor almuerzo!"""
-st.markdown(intro)
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
+# Función para generar respuestas del chat carácter por carácter
+def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
+    for chunk in chat_completion:
+        if chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
 
-# Cargar menú y distritos desde archivos CSV
-def load_menu(CSV_files):
-    file_path = os.path.join(base_dir, CSV_files)
-    menu = pd.read_csv(file_path)
-    return menu
+# Cargar el menú desde un archivo CSV
+@st.cache_data
+def cargar_menu():
+    try:
+        menu = pd.read_csv('menu_platos.csv')
+        st.sidebar.write("Menú cargado:", menu.shape)
+        return menu
+    except FileNotFoundError:
+        st.error("No se pudo encontrar el archivo del menú. Por favor, verifica que 'menu_restaurante.csv' existe en el directorio del proyecto.")
+        return pd.DataFrame(columns=['Plato', 'Precio'])
 
-def load_districts(csv_file):
-    file_path = os.path.join(base_dir, CSV_files)
-    districts = pd.read_csv(file_path)
-    return districts['Distrito'].tolist()
+# Verificar si el pedido es válido (plato está en la carta)
+def verificar_pedido(mensaje, menu_restaurante):
+    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()
+    for producto in productos_en_menu:
+        if producto in mensaje.lower():
+            return producto
+    return None
 
-def format_menu(platos, bebidas, postres):
-    formatted_menu = []
+# Verificar distrito de reparto
+DISTRITOS_REPARTO = ["Distrito1", "Distrito2", "Distrito3"]
+
+def verificar_distrito(mensaje):
+    return next((distrito for distrito in DISTRITOS_REPARTO if distrito.lower() in mensaje.lower()), None)
+
+# Guardar pedido con timestamp y monto
+def guardar_pedido(pedido, monto):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    nuevo_pedido = pd.DataFrame([[timestamp, pedido, monto]], columns=['Timestamp', 'Pedido', 'Monto'])
     
-    formatted_menu.append("**Platos:**")
-    for idx, row in platos.iterrows():
-        formatted_menu.append(
-            f"{row['Plato']}\n{row['Descripción']}\n*Precio:* S/{row['Precio']}"
-        )
-    
-    formatted_menu.append("\n**Bebidas:**")
-    for idx, row in bebidas.iterrows():
-        formatted_menu.append(
-            f"{row['Bebida']}\n*Precio:* S/{row['Precio']}"
-        )
-    
-    formatted_menu.append("\n**Postres:**")
-    for idx, row in postres.iterrows():
-        formatted_menu.append(
-            f"{row['Postre']}\n*Precio:* S/{row['Precio']}"
-        )
-    
-    return "\n\n".join(formatted_menu)
-
-# Cargar el menú y distritos
-platos = load_menu("menu_platos.csv")
-bebidas = load_menu("menu_bebidas.csv")
-postres = load_menu("menu_postres.csv")
-districts = load_districts("distritos.csv")
-
-# Estado inicial del chatbot
-initial_state = [
-    {"role": "system", "content": "You are SazónBot. A friendly assistant helping customers with their lunch orders."},
-    {
-        "role": "assistant",
-        "content": f"👨‍🍳¿Qué te puedo ofrecer?\n\nEste es el menú del día:\n\n{format_menu(platos, bebidas, postres)}",
-    },
-]
-
-# Función para guardar los pedidos
-def save_order(order, total_price):
-    with open("orders.csv", "a") as f:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        f.write(f"{timestamp}, {order}, {total_price}\n")
-
-def validate_order(prompt, platos, bebidas, postres):
-    order_details = {}
-    total_price = 0
-    pattern = r'(\d+)\s*(?:platos|plato|bebidas|bebida|postres|postre)?\s*([a-zA-Z\s]+)'
-
-    prompt = prompt.replace('\n', '').lower().strip()
-    matches = re.findall(pattern, prompt)
-
-    for quantity_str, item_name in matches:
-        try:
-            quantity = int(quantity_str.strip())
-            item_name = item_name.strip()
-            normalized_item_name = item_name.lower()
-            
-            # Buscar en platos
-            if normalized_item_name in platos['Plato'].str.lower().values:
-                price = platos.loc[platos['Plato'].str.lower() == normalized_item_name, 'Precio'].values[0]
-                order_details[item_name] = quantity
-                total_price += price * quantity
-            # Buscar en bebidas
-            elif normalized_item_name in bebidas['Bebida'].str.lower().values:
-                price = bebidas.loc[bebidas['Bebida'].str.lower() == normalized_item_name, 'Precio'].values[0]
-                order_details[item_name] = quantity
-                total_price += price * quantity
-            # Buscar en postres
-            elif normalized_item_name in postres['Postre'].str.lower().values:
-                price = postres.loc[postres['Postre'].str.lower() == normalized_item_name, 'Precio'].values[0]
-                order_details[item_name] = quantity
-                total_price += price * quantity
-            else:
-                return None, None  # Item no existe
-        except ValueError:
-            return None, None
-
-    return order_details, total_price
-
-# Verificar si el distrito es válido
-def is_valid_district(district, districts):
-    return district.lower() in [d.lower() for d in districts]
-
-# Inicializar la conversación si no existe en la sesión
-if "messages" not in st.session_state:
-    st.session_state["messages"] = deepcopy(initial_state)
-    st.session_state["order"] = None
-    st.session_state["total_price"] = 0
-
-# Botón para limpiar la conversación
-clear_button = st.button("Limpiar Conversación", key="clear")
-if clear_button:
-    st.session_state["messages"] = deepcopy(initial_state)
-    st.session_state["order"] = None
-    st.session_state["total_price"] = 0
-
-# Mostrar el historial de la conversación
-for message in st.session_state.messages:
-    if message["role"] == "system":
-        continue
-    with st.chat_message(message["role"], avatar="🍲" if message["role"] == "assistant" else "👤"):
-        st.markdown(message["content"])
-
-def format_order_table(order_details):
-    table = "| Cantidad | Item |\n"
-    table += "|----------|-------|\n"
-    
-    for item, quantity in order_details.items():
-        if item and quantity:
-            table += f"| {quantity}        | {item}  |\n"
-    
-    return table
-
-# Entrada del usuario para el pedido
-if user_input := st.chat_input("¿Qué te gustaría pedir?"):
-    with st.chat_message("user", avatar="👤"):
-        st.markdown(user_input)
-
-    # Llamar a Groq para obtener una respuesta
-    chat_completion = client.chat.completions.create(
-        messages=[{"role": "system", "content": "You are a helpful assistant for a food ordering service."},
-                  {"role": "user", "content": f"Extrae la cantidad y el item de la siguiente solicitud: '{user_input}'.Limitate a solo devolver la cantidad y el item de la solicitud sin un caracter adicional."}],
-        model="llama3-8b-8192",
-        temperature=0.5,
-        max_tokens=150,
-        top_p=1,
-        stop=None,
-        stream=False,
-    )
-
-    parsed_message = chat_completion.choices[0].message.content.strip()
-    
-    # Validar el pedido del usuario
-    order_details, total_price = validate_order(parsed_message, platos, bebidas, postres)
-
-    if order_details:
-        # Guardar el pedido en el estado
-        st.session_state["order"] = order_details
-        st.session_state["total_price"] = total_price
-        
-        # Solicitar confirmación del pedido
-        response_text = f"Tu pedido ha sido registrado:\n\n{format_order_table(order_details)}\n\n¿Está correcto? (Sí o No)"
+    if not os.path.exists('pedidos.csv'):
+        nuevo_pedido.to_csv('pedidos.csv', index=False)
     else:
-        # Si el item no existe, mostrar el menú de nuevo
-        response_text = f"Uno o más items no están disponibles. Aquí está el menú otra vez:\n\n{format_menu(platos, bebidas, postres)}"
+        nuevo_pedido.to_csv('pedidos.csv', mode='a', header=False, index=False)
 
-    # Mostrar la respuesta del asistente
-    with st.chat_message("assistant", avatar="🍲"):
-        st.markdown(response_text)
+# Función para manejar saludos
+def manejar_saludo(mensaje):
+    saludos = ["hola", "buenas", "saludos"]
+    return any(saludo in mensaje.lower() for saludo in saludos)
 
-# Manejo de confirmación del pedido
-if "order" in st.session_state and st.session_state["order"]:
-    if confirmation_input := st.chat_input("¿Está correcto? (Sí o No)"):
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(confirmation_input)
+# Inicializamos el historial de chat
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+    st.session_state.carta_mostrada = False
 
-        # Confirmar pedido
-        if confirmation_input.lower() == "si":
-            response_text = "Por favor selecciona un distrito de entrega:"
-            response_text += f"\n\nEstos son los distritos disponibles: {', '.join(districts)}"
-            with st.chat_message("assistant", avatar="🍲"):
-                st.markdown(response_text)
+# Manejo de cambios de modelo
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = modelos[0]
 
-            if district_input := st.chat_input("Ingresa el distrito:"):
-                with st.chat_message("user", avatar="👤"):
-                    st.markdown(district_input)
+parModelo = st.sidebar.selectbox('Modelos', options=modelos, index=modelos.index(st.session_state.selected_model))
 
-                # Verificar si el distrito es válido
-                if is_valid_district(district_input, districts):
-                    response_text = f"Gracias por proporcionar tu distrito: {district_input}. Procederemos a entregar tu pedido allí. ¡Que disfrutes de tu almuerzo!"
-                    save_order(st.session_state["order"], st.session_state["total_price"])
-                    st.session_state["order"] = None
-                    st.session_state["total_price"] = 0
+# Si el modelo cambia, reinicia el historial
+if parModelo != st.session_state.selected_model:
+    st.session_state.selected_model = parModelo
+    st.session_state.messages = []
+
+# Botón para reiniciar el chat
+if st.sidebar.button("Reiniciar chat"):
+    st.session_state.messages = []
+    st.session_state.carta_mostrada = False
+
+# Mostrar mensajes de chat desde el historial
+with st.container():
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+# Mostrar campo de entrada de prompt
+prompt = st.chat_input("¿Qué quieres saber?")
+
+# Cargar el menú
+menu = cargar_menu()
+
+# Validación del prompt: no vacío y no demasiado largo
+if prompt:
+    if len(prompt) > 2000:
+        st.error("El mensaje es demasiado largo. Por favor, acórtalo.")
+    else:
+        # Mostrar mensaje de usuario en el contenedor de mensajes de chat
+        st.chat_message("user").markdown(prompt)
+        # Agregar mensaje de usuario al historial de chat
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        # Indicador de carga mientras se genera la respuesta
+        with st.spinner("Generando respuesta..."):
+            try:
+                # Mostrar el menú si el usuario menciona "menú" o "carta" en su mensaje
+                if manejar_saludo(prompt):
+                    respuesta = "¡Hola! Bienvenido a nuestro restaurante. ¿En qué puedo ayudarte? Puedes pedir nuestra carta si deseas ver el menú."
+                elif "menú" in prompt.lower() or "carta" in prompt.lower():
+                    if not st.session_state.carta_mostrada:
+                        st.write("Aquí tienes el menú del restaurante:")
+                        st.write(menu)
+                        respuesta = "Aquí tienes el menú del restaurante. ¿Qué te gustaría ordenar?"
+                        st.session_state.carta_mostrada = True
+                    else:
+                        respuesta = "Ya te mostré el menú. ¿Te gustaría pedir algo?"
                 else:
-                    response_text = f"Lo siento, no entregamos en ese distrito. Estos son los distritos disponibles: {', '.join(districts)}"
+                    pedido = verificar_pedido(prompt, menu)
+                    if pedido:
+                        # Busca el precio del pedido
+                        monto = menu[menu['Plato'].str.lower() == pedido]['Precio'].values
+                        if monto:
+                            monto = monto[0]
+                            guardar_pedido(pedido, monto)
+                            respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
+                        else:
+                            respuesta = "Lo siento, ocurrió un error al procesar el precio del pedido."
+                    else:
+                        respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
 
-                with st.chat_message("assistant", avatar="🍲"):
-                    st.markdown(response_text)
+                # Verificar si se menciona un distrito válido para el reparto
+                distrito = verificar_distrito(prompt)
+                if distrito:
+                    respuesta += f" Y sí, repartimos en tu distrito: {distrito}."
+                elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
+                    respuesta += " Lo siento, no repartimos en ese distrito. Nuestras zonas de reparto son: " + ", ".join(DISTRITOS_REPARTO)
 
-        elif confirmation_input.lower() == "no":
-            response_text = "Entiendo, puedes volver a hacer tu pedido."
-            with st.chat_message("assistant", avatar="🍲"):
-                st.markdown(response_text)
+                # Mostrar respuesta del asistente
+                st.chat_message("assistant").markdown(respuesta)
+                # Agregar respuesta del asistente al historial de chat
+                st.session_state.messages.append({"role": "assistant", "content": respuesta})
+
+            except Exception as e:
+                st.error(f"Hubo un error al procesar tu solicitud: {e}")
+else:
+    if "messages" not in st.session_state:
+        st.chat_message("assistant").markdown("¡Bienvenido! ¿En qué puedo ayudarte hoy?")
+        st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido! ¿En qué puedo ayudarte hoy?"})

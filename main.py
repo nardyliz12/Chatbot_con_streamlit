@@ -6,7 +6,7 @@ from groq import Groq
 from typing import Generator
 
 # Título de la aplicación
-st.title("ChatMang - Chatbot de Restaurante")
+st.title("ChatMang - Comida Asiática")
 
 # Declaramos el cliente de Groq con la API Key desde el archivo .streamlit/secrets.toml
 client = Groq(api_key=st.secrets["APIKey_Groq"])

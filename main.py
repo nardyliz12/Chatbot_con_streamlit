@@ -176,4 +176,4 @@ else:
     if "messages" not in st.session_state:
         st.chat_message("assistant").markdown("¡Bienvenido! ¿En qué puedo ayudarte hoy?")
         st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido! ¿En qué puedo ayudarte hoy?"})
-    
+                    

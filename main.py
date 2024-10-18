@@ -8,7 +8,7 @@ import os
 # Título de la aplicación
 st.title("BotRestaurant - 5 Star Michilini")
 
-# Define la API Key directamente en el código
+## Define la API Key directamente en el código
 api_key = "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"
 
 # Inicializamos el cliente de Groq con la API Key

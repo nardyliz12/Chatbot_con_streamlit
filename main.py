@@ -113,7 +113,7 @@ if prompt:
         try:
             # Manejar saludo
             if "hola" in prompt.lower() or "buenas" in prompt.lower():
-                respuesta = "¡Bienvenido a BotRestaurant! ¿Deseas ver el menú? Tenemos platos, bebidas y postres."
+                respuesta = "¡Bienvenido a BotRestaurant! ¿Deseas ver la carta? Tenemos platos, bebidas y postres de la gastronomía asiática."
                 st.session_state.menu_actual = None
 
             # Mostrar menú según la solicitud

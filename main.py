@@ -26,7 +26,7 @@ def cargar_menus():
         return platos, bebidas, postres
     except FileNotFoundError:
         st.error("No se pudo encontrar uno de los archivos del menú.")
-        return pd.DataFrame(columns=['Plato', 'Precio']), pd.DataFrame(columns=['Bebida', 'Precio']), pd.DataFrame(columns=['Postre', 'Precio'])
+        return pd.DataFrame(columns=['Plato', 'Precio']), pd.DataFrame(columns(['Bebida', 'Precio']), pd.DataFrame(columns=['Postre', 'Precio'])
 
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):

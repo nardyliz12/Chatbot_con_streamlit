@@ -21,12 +21,25 @@ def cargar_menus():
 # Verificar si el pedido es válido (item está en la carta)
 def verificar_pedido(mensaje, menus):
     mensaje = mensaje.lower()  # Convertir todo a minúsculas
-    for menu_type, menu in menus.items():
-        # Cambiar 'Item' a 'Plato' para la categoría de platos
-        productos_en_menu = menu['Item'].str.lower().tolist() if menu_type != 'platos' else menu['Plato'].str.lower().tolist()
-        for producto in productos_en_menu:
-            if producto in mensaje:
-                return producto, menu_type
+
+    # Buscar en platos
+    productos_en_menu_platos = menus['platos']['Plato'].str.lower().tolist()
+    for producto in productos_en_menu_platos:
+        if producto in mensaje:
+            return producto, 'platos'
+
+    # Buscar en bebidas
+    productos_en_menu_bebidas = menus['bebidas']['Bebida'].str.lower().tolist()
+    for bebida in productos_en_menu_bebidas:
+        if bebida in mensaje:
+            return bebida, 'bebidas'
+
+    # Buscar en postres
+    productos_en_menu_postres = menus['postres']['Item'].str.lower().tolist()
+    for postre in productos_en_menu_postres:
+        if postre in mensaje:
+            return postre, 'postres'
+
     return None, None
 
 # Guardar pedido con timestamp y monto
@@ -153,3 +166,4 @@ if prompt:
 
         except Exception as e:
             st.error(f"Ocurrió un error: {e}")
+

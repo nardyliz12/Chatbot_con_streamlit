@@ -168,7 +168,7 @@ if prompt:
                 st.session_state.menu_actual = None
 
             # Mostrar menú según la solicitud
-            elif "menú" en prompt.lower() or "carta" en prompt.lower():
+            elif "menú" in prompt.lower() or "carta" in prompt.lower():  # Corrección aplicada aquí
                 if "platos" in prompt.lower():
                     mostrar_menu('platos')
                     respuesta = "Aquí está el menú de platos. ¿Qué te gustaría ordenar?"
@@ -198,7 +198,7 @@ if prompt:
             distrito = verificar_distrito(prompt)
             if distrito:
                 respuesta += f" Repartimos en {distrito}."
-            elif "reparto" en prompt.lower() or "entrega" in prompt.lower():
+            elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
                 respuesta += f" No repartimos en esa zona. Zonas de reparto: {', '.join(DISTRITOS_REPARTO)}."
 
             st.chat_message("assistant").markdown(respuesta)

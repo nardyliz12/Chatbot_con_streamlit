@@ -26,7 +26,11 @@ def cargar_menus():
         return platos, bebidas, postres
     except FileNotFoundError:
         st.error("No se pudo encontrar uno de los archivos del menú.")
-        return pd.DataFrame(columns=['Plato', 'Precio']), pd.DataFrame(columns(['Bebida', 'Precio']), pd.DataFrame(columns=['Postre', 'Precio'])
+        return (
+            pd.DataFrame(columns=['Plato', 'Precio']),
+            pd.DataFrame(columns=['Bebida', 'Precio']),
+            pd.DataFrame(columns=['Postre', 'Precio'])
+        )
 
 # Verificar si el pedido es válido (plato está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
@@ -115,65 +119,4 @@ def mostrar_menu(tipo):
         st.write("Menú de Postres:")
         st.write(menu_postres)
 
-# Validación del prompt
-if prompt:
-    st.chat_message("user").markdown(prompt)
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-    with st.spinner("Generando respuesta..."):
-        try:
-            # Manejar saludo
-            if manejar_saludo(prompt):
-                respuesta = "¡Bienvenido a BotRestaurant! ¿Deseas ver el menú? Tenemos platos, bebidas y postres."
-                st.session_state.menu_actual = None
-
-            # Mostrar menú según la solicitud
-            elif any(palabra in prompt.lower() for palabra in ["menú", "carta"]):  # Reconocer "menú" o "carta"
-                if "platos" in prompt.lower():
-                    mostrar_menu('platos')
-                    respuesta = "Aquí está el menú de platos. Si deseas ver bebidas o postres, por favor indícalo."
-                    st.session_state.menu_actual = 'platos'
-                elif "bebidas" in prompt.lower():
-                    mostrar_menu('bebidas')
-                    respuesta = "Aquí está el menú de bebidas. Si deseas ver platos o postres, por favor indícalo."
-                    st.session_state.menu_actual = 'bebidas'
-                elif "postres" in prompt.lower():
-                    mostrar_menu('postres')
-                    respuesta = "Aquí está el menú de postres. Si deseas ver platos o bebidas, por favor indícalo."
-                    st.session_state.menu_actual = 'postres'
-                else:
-                    if st.session_state.menu_actual == 'platos':
-                        mostrar_menu('platos')
-                    elif st.session_state.menu_actual == 'bebidas':
-                        mostrar_menu('bebidas')
-                    elif st.session_state.menu_actual == 'postres':
-                        mostrar_menu('postres')
-                    respuesta = "Te mostré el último menú que pediste. Si quieres cambiar, puedes pedirme platos, bebidas o postres."
-
-            # Procesar pedidos
-            else:
-                pedido = verificar_pedido(prompt, menu_platos)
-                if pedido:
-                    monto = menu_platos[menu_platos['Plato'].str.lower() == pedido]['Precio'].values
-                    if monto:
-                        monto = monto[0]
-                        guardar_pedido(pedido, monto)
-                        respuesta = f"¡Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
-                    else:
-                        respuesta = "Ocurrió un error con el precio de tu pedido."
-                else:
-                    respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
-
-            # Verificar si el mensaje menciona reparto o entrega
-            distrito = verificar_distrito(prompt)
-            if distrito:
-                respuesta += f" Repartimos en {distrito}."
-            elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
-                respuesta += f" No repartimos en esa zona. Zonas de reparto: {', '.join(DISTRITOS_REPARTO)}."
-
-            st.chat_message("assistant").markdown(respuesta)
-            st.session_state.messages.append({"role": "assistant", "content": respuesta})
-
-        except Exception as e:
-            st.error(f"Hubo un error al procesar tu solicitud: {e}")
-
+# Valida

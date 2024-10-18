@@ -168,7 +168,7 @@ if prompt:
                 st.session_state.menu_actual = None
 
             # Mostrar menú según la solicitud
-            elif "menú" in prompt.lower() or "carta" in prompt.lower():  # Corrección aplicada aquí
+            elif "menú" in prompt.lower() or "carta" in prompt.lower():
                 if "platos" in prompt.lower():
                     mostrar_menu('platos')
                     respuesta = "Aquí está el menú de platos. ¿Qué te gustaría ordenar?"
@@ -202,3 +202,7 @@ if prompt:
                 respuesta += f" No repartimos en esa zona. Zonas de reparto: {', '.join(DISTRITOS_REPARTO)}."
 
             st.chat_message("assistant").markdown(respuesta)
+        
+        except Exception as e:
+            st.error(f"Ocurrió un error: {e}")
+

@@ -164,10 +164,11 @@ if prompt:
                 else:
                     respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
 
+            # Verificar si el mensaje menciona reparto o entrega
             distrito = verificar_distrito(prompt)
             if distrito:
                 respuesta += f" Repartimos en {distrito}."
-            elif "reparto" en prompt.lower() or "entrega" in prompt.lower():
+            elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
                 respuesta += f" No repartimos en esa zona. Zonas de reparto: {', '.join(DISTRITOS_REPARTO)}."
 
             st.chat_message("assistant").markdown(respuesta)

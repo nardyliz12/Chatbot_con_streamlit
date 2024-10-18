@@ -179,5 +179,5 @@ if prompt:
             st.session_state.messages.append({"role": "assistant", "content": respuesta})
 
         except Exception as e:
-            st.error(f"Hubo un error al procesar tu solicitud
+            st.error(f"Hubo un error al procesar tu solicitud)
 

@@ -1,20 +1,10 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from groq import Groq
 import os
 
 # Título de la aplicación
 st.title("BotRestaurant - 5 Star Michilini")
-
-# Define la API Key directamente en el código
-api_key = "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"
-
-# Inicializamos el cliente de Groq con la API Key
-client = Groq(api_key=api_key)
-
-# Lista de modelos para elegir
-modelos = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768']
 
 # Cargar los menús desde archivos CSV
 @st.cache_data
@@ -38,23 +28,6 @@ def verificar_pedido(mensaje, menus):
                 return producto, menu_type
     return None, None
 
-# Verificar distrito de reparto
-DISTRITOS_REPARTO = []
-
-@st.cache_data
-def cargar_distritos():
-    try:
-        distritos = pd.read_csv('distritos.csv')
-        return distritos['Distrito'].tolist()
-    except FileNotFoundError:
-        st.error("No se pudo encontrar el archivo de distritos.")
-        return []
-
-DISTRITOS_REPARTO = cargar_distritos()
-
-def verificar_distrito(mensaje):
-    return next((distrito for distrito in DISTRITOS_REPARTO if distrito.lower() in mensaje.lower()), None)
-
 # Guardar pedido con timestamp y monto
 def guardar_pedido(pedido, monto):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -65,32 +38,8 @@ def guardar_pedido(pedido, monto):
     else:
         nuevo_pedido.to_csv('pedidos.csv', mode='a', header=False, index=False)
 
-# Función para manejar saludos
-def manejar_saludo(mensaje):
-    saludos = ["hola", "buenas", "saludos"]
-    return any(saludo in mensaje.lower() for saludo in saludos)
-
 # Inicializamos el historial de chat y el pedido actual
 if "messages" not in st.session_state:
-    st.session_state.messages = []
-    st.session_state.carta_mostrada = False
-    st.session_state.menu_actual = None
-    st.session_state.pedido_actual = {}
-    st.session_state.total_pedido = 0
-
-# Manejo de cambios de modelo
-if "selected_model" not in st.session_state:
-    st.session_state.selected_model = modelos[0]
-
-parModelo = st.sidebar.selectbox('Modelos', options=modelos, index=modelos.index(st.session_state.selected_model))
-
-# Si el modelo cambia, reinicia el historial
-if parModelo != st.session_state.selected_model:
-    st.session_state.selected_model = parModelo
-    st.session_state.messages = []
-
-# Botón para reiniciar el chat
-if st.sidebar.button("Reiniciar chat"):
     st.session_state.messages = []
     st.session_state.carta_mostrada = False
     st.session_state.menu_actual = None
@@ -163,7 +112,7 @@ if prompt:
     with st.spinner("Generando respuesta..."):
         try:
             # Manejar saludo
-            if manejar_saludo(prompt):
+            if "hola" in prompt.lower() or "buenas" in prompt.lower():
                 respuesta = "¡Bienvenido a BotRestaurant! ¿Deseas ver el menú? Tenemos platos, bebidas y postres."
                 st.session_state.menu_actual = None
 
@@ -193,16 +142,8 @@ if prompt:
                     respuesta = resultado_pedido
                 else:
                     respuesta = "Lo siento, no entendí tu pedido. ¿Podrías especificar qué te gustaría pedir?"
-            
-            # Verificar distrito de reparto
-            distrito = verificar_distrito(prompt)
-            if distrito:
-                respuesta += f" Repartimos en {distrito}."
-            elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
-                respuesta += f" No repartimos en esa zona. Zonas de reparto: {', '.join(DISTRITOS_REPARTO)}."
 
             st.chat_message("assistant").markdown(respuesta)
-        
+
         except Exception as e:
             st.error(f"Ocurrió un error: {e}")
-

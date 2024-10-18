@@ -32,7 +32,7 @@ def cargar_menus():
                 pd.DataFrame(columns=['Bebida', 'Precio']), 
                 pd.DataFrame(columns=['Postre', 'Precio']))
 
-# Verificar si el pedido es válido (plato está en la carta)
+# Verificar si el pedido es válido (producto está en la carta)
 def verificar_pedido(mensaje, menu_restaurante):
     productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()
     for producto in productos_en_menu:
@@ -40,43 +40,23 @@ def verificar_pedido(mensaje, menu_restaurante):
             return producto
     return None
 
-# Verificar distrito de reparto
-DISTRITOS_REPARTO = []
-
-@st.cache_data
-def cargar_distritos():
-    try:
-        distritos = pd.read_csv('distritos.csv')
-        return distritos['Distrito'].tolist()
-    except FileNotFoundError:
-        st.error("No se pudo encontrar el archivo de distritos.")
-        return []
-
-DISTRITOS_REPARTO = cargar_distritos()
-
-def verificar_distrito(mensaje):
-    return next((distrito for distrito in DISTRITOS_REPARTO if distrito.lower() in mensaje.lower()), None)
-
 # Guardar pedido con timestamp y monto
-def guardar_pedido(pedido, monto):
+def guardar_pedido(pedido, monto, cantidad):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    nuevo_pedido = pd.DataFrame([[timestamp, pedido, monto]], columns=['Timestamp', 'Pedido', 'Monto'])
+    nuevo_pedido = pd.DataFrame([[timestamp, pedido, cantidad, monto]], 
+                                columns=['Timestamp', 'Pedido', 'Cantidad', 'Monto'])
     
     if not os.path.exists('pedidos.csv'):
         nuevo_pedido.to_csv('pedidos.csv', index=False)
     else:
         nuevo_pedido.to_csv('pedidos.csv', mode='a', header=False, index=False)
 
-# Función para manejar saludos
-def manejar_saludo(mensaje):
-    saludos = ["hola", "buenas", "saludos"]
-    return any(saludo in mensaje.lower() for saludo in saludos)
-
-# Inicializamos el historial de chat
+# Inicializamos el historial de chat y la lista de pedidos acumulados
 if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.carta_mostrada = False
     st.session_state.menu_actual = "platos"
+    st.session_state.pedido_acumulado = []
 
 # Manejo de cambios de modelo
 if "selected_model" not in st.session_state:
@@ -88,12 +68,14 @@ parModelo = st.sidebar.selectbox('Modelos', options=modelos, index=modelos.index
 if parModelo != st.session_state.selected_model:
     st.session_state.selected_model = parModelo
     st.session_state.messages = []
+    st.session_state.pedido_acumulado = []
 
 # Botón para reiniciar el chat
 if st.sidebar.button("Reiniciar chat"):
     st.session_state.messages = []
     st.session_state.carta_mostrada = False
     st.session_state.menu_actual = "platos"
+    st.session_state.pedido_acumulado = []
 
 # Mostrar mensajes de chat desde el historial
 with st.container():
@@ -101,11 +83,44 @@ with st.container():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-# Mostrar campo de entrada de prompt (inicialización antes del uso)
-prompt = st.chat_input("¿Qué quieres saber?")
+# Mostrar campo de entrada de prompt
+prompt = st.chat_input("¿Qué te gustaría pedir o consultar?")
 
 # Cargar el menú
 menu_platos, menu_bebidas, menu_postres = cargar_menus()
+
+# Función para procesar el pedido y acumular
+def procesar_pedido(prompt, menu_actual):
+    cantidad = None
+    for palabra in prompt.split():
+        if palabra.isdigit():
+            cantidad = int(palabra)
+            break
+
+    if menu_actual == "platos":
+        producto = verificar_pedido(prompt, menu_platos)
+        menu = menu_platos
+    elif menu_actual == "bebidas":
+        producto = verificar_pedido(prompt, menu_bebidas)
+        menu = menu_bebidas
+    elif menu_actual == "postres":
+        producto = verificar_pedido(prompt, menu_postres)
+        menu = menu_postres
+
+    if producto and cantidad:
+        precio_unitario = menu[menu['Plato'].str.lower() == producto]['Precio'].values[0]
+        total_precio = cantidad * precio_unitario
+
+        st.session_state.pedido_acumulado.append({
+            "Producto": producto, 
+            "Cantidad": cantidad, 
+            "Precio unitario": precio_unitario, 
+            "Total": total_precio
+        })
+
+        return f"Has pedido {cantidad} {producto}(s). Precio total: ${total_precio}."
+    else:
+        return "Lo siento, no entendí tu pedido. Por favor, intenta de nuevo."
 
 # Validación del prompt: no vacío y no demasiado largo
 if prompt:
@@ -117,9 +132,7 @@ if prompt:
 
         with st.spinner("Generando respuesta..."):
             try:
-                if manejar_saludo(prompt):
-                    respuesta = "¡Bienvenido a BotRestaurant, tu destino para saborear lo mejor de la comida asiática! ¿En qué puedo ayudarte?, ¿Deseas ver el menú?"
-                elif "menú" in prompt.lower() or "carta" in prompt.lower():
+                if "menú" in prompt.lower() or "carta" in prompt.lower():
                     if "platos" in prompt.lower():
                         st.write("Aquí tienes el menú de platos:")
                         st.write(menu_platos)
@@ -136,6 +149,7 @@ if prompt:
                         respuesta = "Aquí tienes el menú de postres. Si deseas ver el menú de platos o bebidas, solo pídelo."
                         st.session_state.menu_actual = "postres"
                     else:
+                        # Repetir menú actual
                         if st.session_state.menu_actual == "platos":
                             st.write("Aquí tienes nuevamente el menú de platos:")
                             st.write(menu_platos)
@@ -148,24 +162,18 @@ if prompt:
                             st.write("Aquí tienes nuevamente el menú de postres:")
                             st.write(menu_postres)
                             respuesta = "Te muestro nuevamente el menú de postres."
-                else:
-                    pedido = verificar_pedido(prompt, menu_platos)
-                    if pedido:
-                        monto = menu_platos[menu_platos['Plato'].str.lower() == pedido]['Precio'].values
-                        if monto:
-                            monto = monto[0]
-                            guardar_pedido(pedido, monto)
-                            respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
-                        else:
-                            respuesta = "Lo siento, ocurrió un error al procesar el precio del pedido."
+                elif "pedido" in prompt.lower() or "quiero" in prompt.lower():
+                    respuesta = procesar_pedido(prompt, st.session_state.menu_actual)
+                elif "ver total" in prompt.lower():
+                    if st.session_state.pedido_acumulado:
+                        total = sum(item["Total"] for item in st.session_state.pedido_acumulado)
+                        respuesta = f"El total acumulado de tu pedido es: ${total}."
+                        for item in st.session_state.pedido_acumulado:
+                            respuesta += f"\n- {item['Cantidad']}x {item['Producto']} (${item['Total']})"
                     else:
-                        respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir el menú para ver nuestras opciones?"
-
-                distrito = verificar_distrito(prompt)
-                if distrito:
-                    respuesta += f" Y sí, repartimos en tu distrito: {distrito}."
-                elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
-                    respuesta += " Lo siento, no repartimos en ese distrito. Nuestras zonas de reparto son: " + ", ".join(DISTRITOS_REPARTO)
+                        respuesta = "No tienes ningún pedido acumulado todavía."
+                else:
+                    respuesta = "Lo siento, no entendí tu solicitud. ¿Podrías intentarlo de nuevo?"
 
                 st.chat_message("assistant").markdown(respuesta)
                 st.session_state.messages.append({"role": "assistant", "content": respuesta})
@@ -176,4 +184,3 @@ else:
     if "messages" not in st.session_state:
         st.chat_message("assistant").markdown("¡Bienvenido! ¿En qué puedo ayudarte hoy?")
         st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido! ¿En qué puedo ayudarte hoy?"})
-                    

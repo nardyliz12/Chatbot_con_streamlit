@@ -22,7 +22,8 @@ def cargar_menus():
 def verificar_pedido(mensaje, menus):
     mensaje = mensaje.lower()  # Convertir todo a minúsculas
     for menu_type, menu in menus.items():
-        productos_en_menu = menu['Item'].str.lower().tolist()
+        # Cambiar 'Item' a 'Plato' para la categoría de platos
+        productos_en_menu = menu['Item'].str.lower().tolist() if menu_type != 'platos' else menu['Plato'].str.lower().tolist()
         for producto in productos_en_menu:
             if producto in mensaje:
                 return producto, menu_type
@@ -69,7 +70,11 @@ def mostrar_menu(tipo):
 # Función para procesar el pedido
 def procesar_pedido(mensaje, menus):
     palabras = mensaje.lower().split()
-    cantidades = {'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5, 'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10}
+    cantidades = {
+        'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4,
+        'cinco': 5, 'seis': 6, 'siete': 7, 'ocho': 8,
+        'nueve': 9, 'diez': 10
+    }
     cantidad = 1
     item = None
     menu_type = None
@@ -88,7 +93,7 @@ def procesar_pedido(mensaje, menus):
     
     if item and menu_type:
         # Extraer el precio del ítem
-        precio = menus[menu_type][menus[menu_type]['Item'].str.lower() == item]['Precio'].values[0]
+        precio = menus[menu_type][menus[menu_type]['Item'].str.lower() == item]['Precio'].values[0] if menu_type != 'platos' else menus[menu_type][menus[menu_type]['Plato'].str.lower() == item]['Precio'].values[0]
         total = precio * cantidad
         
         # Actualizar el pedido actual
@@ -102,6 +107,7 @@ def procesar_pedido(mensaje, menus):
         
         # Mostrar el detalle del pedido y el total actual
         return (f"Has agregado {cantidad} {item}(s) a tu pedido. El total actual es de ${st.session_state.total_pedido:.2f}.")
+    
     return None
 
 # Validación del prompt

@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from groq import Groq
-from typing import Generator
 import os
 
 # Título de la aplicación
@@ -20,25 +19,23 @@ modelos = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768']
 # Cargar los menús desde archivos CSV
 @st.cache_data
 def cargar_menus():
-    try:
-        platos = pd.read_csv('menu_platos.csv')
-        bebidas = pd.read_csv('menu_bebidas.csv')
-        postres = pd.read_csv('menu_postres.csv')
-        st.sidebar.write("Menú cargado:", platos.shape, bebidas.shape, postres.shape)
-        return platos, bebidas, postres
-    except FileNotFoundError:
-        st.error("No se pudo encontrar uno de los archivos del menú.")
-        return (pd.DataFrame(columns=['Plato', 'Precio']), 
-                pd.DataFrame(columns=['Bebida', 'Precio']), 
-                pd.DataFrame(columns=['Postre', 'Precio']))
+    menus = {}
+    for menu_type in ['platos', 'bebidas', 'postres']:
+        try:
+            menus[menu_type] = pd.read_csv(f'menu_{menu_type}.csv')
+        except FileNotFoundError:
+            st.error(f"No se pudo encontrar el archivo del menú de {menu_type}.")
+            menus[menu_type] = pd.DataFrame(columns=['Item', 'Precio'])
+    return menus
 
-# Verificar si el pedido es válido (plato está en la carta)
-def verificar_pedido(mensaje, menu_restaurante):
-    productos_en_menu = menu_restaurante['Plato'].str.lower().tolist()
-    for producto in productos_en_menu:
-        if producto in mensaje.lower():
-            return producto
-    return None
+# Verificar si el pedido es válido (item está en la carta)
+def verificar_pedido(mensaje, menus):
+    for menu_type, menu in menus.items():
+        productos_en_menu = menu['Item'].str.lower().tolist()
+        for producto in productos_en_menu:
+            if producto in mensaje.lower():
+                return producto, menu_type
+    return None, None
 
 # Verificar distrito de reparto
 DISTRITOS_REPARTO = []
@@ -72,11 +69,13 @@ def manejar_saludo(mensaje):
     saludos = ["hola", "buenas", "saludos"]
     return any(saludo in mensaje.lower() for saludo in saludos)
 
-# Inicializamos el historial de chat
+# Inicializamos el historial de chat y el pedido actual
 if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.carta_mostrada = False
-    st.session_state.menu_actual = "platos"
+    st.session_state.menu_actual = None
+    st.session_state.pedido_actual = {}
+    st.session_state.total_pedido = 0
 
 # Manejo de cambios de modelo
 if "selected_model" not in st.session_state:
@@ -93,7 +92,9 @@ if parModelo != st.session_state.selected_model:
 if st.sidebar.button("Reiniciar chat"):
     st.session_state.messages = []
     st.session_state.carta_mostrada = False
-    st.session_state.menu_actual = "platos"
+    st.session_state.menu_actual = None
+    st.session_state.pedido_actual = {}
+    st.session_state.total_pedido = 0
 
 # Mostrar mensajes de chat desde el historial
 with st.container():
@@ -101,78 +102,116 @@ with st.container():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-# Mostrar campo de entrada de prompt (inicialización antes del uso)
+# Mostrar campo de entrada de prompt
 prompt = st.chat_input("¿Qué quieres saber?")
 
 # Cargar el menú
-menu_platos, menu_bebidas, menu_postres = cargar_menus()
+menus = cargar_menus()
 
-# Validación del prompt: no vacío y no demasiado largo
-if prompt:
-    if len(prompt) > 2000:
-        st.error("El mensaje es demasiado largo. Por favor, acórtalo.")
+# Función para mostrar el menú
+def mostrar_menu(tipo):
+    if tipo in menus:
+        st.write(f"Menú de {tipo.capitalize()}:")
+        st.write(menus[tipo])
     else:
-        st.chat_message("user").markdown(prompt)
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.write(f"Lo siento, no tenemos un menú de {tipo}.")
 
-        with st.spinner("Generando respuesta..."):
-            try:
-                if manejar_saludo(prompt):
-                    respuesta = "¡Bienvenido a BotRestaurant, tu destino para saborear lo mejor de la comida asiática! ¿En qué puedo ayudarte?, ¿Deseas ver el menú?"
-                elif "menú" in prompt.lower() or "carta" in prompt.lower():
-                    if "platos" in prompt.lower():
-                        st.write("Aquí tienes el menú de platos:")
-                        st.write(menu_platos)
-                        respuesta = "Aquí tienes el menú de platos. Si deseas ver el menú de bebidas o postres, solo pídelo."
-                        st.session_state.menu_actual = "platos"
-                    elif "bebidas" in prompt.lower():
-                        st.write("Aquí tienes el menú de bebidas:")
-                        st.write(menu_bebidas)
-                        respuesta = "Aquí tienes el menú de bebidas. Si deseas ver el menú de platos o postres, solo pídelo."
-                        st.session_state.menu_actual = "bebidas"
-                    elif "postres" in prompt.lower():
-                        st.write("Aquí tienes el menú de postres:")
-                        st.write(menu_postres)
-                        respuesta = "Aquí tienes el menú de postres. Si deseas ver el menú de platos o bebidas, solo pídelo."
-                        st.session_state.menu_actual = "postres"
-                    else:
-                        if st.session_state.menu_actual == "platos":
-                            st.write("Aquí tienes nuevamente el menú de platos:")
-                            st.write(menu_platos)
-                            respuesta = "Te muestro nuevamente el menú de platos."
-                        elif st.session_state.menu_actual == "bebidas":
-                            st.write("Aquí tienes nuevamente el menú de bebidas:")
-                            st.write(menu_bebidas)
-                            respuesta = "Te muestro nuevamente el menú de bebidas."
-                        elif st.session_state.menu_actual == "postres":
-                            st.write("Aquí tienes nuevamente el menú de postres:")
-                            st.write(menu_postres)
-                            respuesta = "Te muestro nuevamente el menú de postres."
+# Función para procesar el pedido
+def procesar_pedido(mensaje, menus):
+    palabras = mensaje.lower().split()
+    cantidades = {'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5, 'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10}
+    cantidad = 1
+    item = None
+    menu_type = None
+    
+    # Buscar palabras que indiquen cantidades numéricas
+    for i, palabra in enumerate(palabras):
+        if palabra.isdigit():
+            cantidad = int(palabra)
+        elif palabra in cantidades:
+            cantidad = cantidades[palabra]
+
+        # Verificar si el pedido se refiere a algún producto en el menú
+        item, menu_type = verificar_pedido(' '.join(palabras[i:]), menus)
+        if item:
+            break
+    
+    if item and menu_type:
+        # Extraer el precio del ítem
+        precio = menus[menu_type][menus[menu_type]['Item'].str.lower() == item]['Precio'].values[0]
+        total = precio * cantidad
+        
+        # Actualizar el pedido actual
+        if item in st.session_state.pedido_actual:
+            st.session_state.pedido_actual[item]["cantidad"] += cantidad
+            st.session_state.pedido_actual[item]["subtotal"] += total
+        else:
+            st.session_state.pedido_actual[item] = {"cantidad": cantidad, "precio": precio, "subtotal": total}
+        
+        st.session_state.total_pedido += total
+        
+        # Mostrar el detalle del pedido y el total actual
+        return (f"Has agregado {cantidad} {item}(s) a tu pedido. El total actual es de ${st.session_state.total_pedido:.2f}.")
+    return None
+
+# Validación del prompt
+if prompt:
+    st.chat_message("user").markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
+
+    with st.spinner("Generando respuesta..."):
+        try:
+            # Manejar saludo
+            if manejar_saludo(prompt):
+                respuesta = "¡Bienvenido a BotRestaurant! ¿Deseas ver el menú? Tenemos platos, bebidas y postres."
+                st.session_state.menu_actual = None
+
+            # Mostrar menú según la solicitud
+            elif "menú" in prompt.lower() or "carta" in prompt.lower():
+                if "platos" in prompt.lower():
+                    mostrar_menu('platos')
+                    respuesta = "Aquí está el menú de platos. ¿Qué te gustaría ordenar?"
+                    st.session_state.menu_actual = 'platos'
+                elif "bebidas" in prompt.lower():
+                    mostrar_menu('bebidas')
+                    respuesta = "Aquí está el menú de bebidas. ¿Qué te gustaría ordenar?"
+                    st.session_state.menu_actual = 'bebidas'
+                elif "postres" in prompt.lower():
+                    mostrar_menu('postres')
+                    respuesta = "Aquí está el menú de postres. ¿Qué te gustaría ordenar?"
+                    st.session_state.menu_actual = 'postres'
                 else:
-                    pedido = verificar_pedido(prompt, menu_platos)
-                    if pedido:
-                        monto = menu_platos[menu_platos['Plato'].str.lower() == pedido]['Precio'].values
-                        if monto:
-                            monto = monto[0]
-                            guardar_pedido(pedido, monto)
-                            respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
-                        else:
-                            respuesta = "Lo siento, ocurrió un error al procesar el precio del pedido."
-                    else:
-                        respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir el menú para ver nuestras opciones?"
+                    for menu_type in menus:
+                        mostrar_menu(menu_type)
+                    respuesta = "Te he mostrado todos nuestros menús. ¿Qué te gustaría ordenar?"
 
-                distrito = verificar_distrito(prompt)
-                if distrito:
-                    respuesta += f" Y sí, repartimos en tu distrito: {distrito}."
-                elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
-                    respuesta += " Lo siento, no repartimos en ese distrito. Nuestras zonas de reparto son: " + ", ".join(DISTRITOS_REPARTO)
+            # Procesar pedidos cuando se detecte la palabra "pedir" o "ordenar"
+            elif "pedir" in prompt.lower() or "ordenar" in prompt.lower():
+                resultado_pedido = procesar_pedido(prompt, menus)
+                if resultado_pedido:
+                    respuesta = resultado_pedido
+                else:
+                    respuesta = "Lo siento, no entendí tu pedido. ¿Podrías especificar qué te gustaría pedir?"
+            
+            # Verificar distrito de reparto
+            distrito = verificar_distrito(prompt)
+            if distrito:
+                respuesta += f" Repartimos en {distrito}."
+            elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
+                respuesta += f" No repartimos en esa zona. Zonas de reparto: {', '.join(DISTRITOS_REPARTO)}."
 
-                st.chat_message("assistant").markdown(respuesta)
-                st.session_state.messages.append({"role": "assistant", "content": respuesta})
+            st.chat_message("assistant").markdown(respuesta)
+            st.session_state.messages.append({"role": "assistant", "content": respuesta})
 
-            except Exception as e:
-                st.error(f"Hubo un error al procesar tu solicitud: {e}")
-else:
-    if "messages" not in st.session_state:
-        st.chat_message("assistant").markdown("¡Bienvenido! ¿En qué puedo ayudarte hoy?")
-        st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido! ¿En qué puedo ayudarte hoy?"})
+        except Exception as e:
+            st.error(f"Hubo un error al procesar tu solicitud: {e}")
+
+# Mostrar el pedido actual en la barra lateral
+if st.session_state.pedido_actual:
+    st.sidebar.write("Tu pedido actual:")
+    for item, detalle in st.session_state.pedido_actual.items():
+        st.sidebar.write(f"{detalle['cantidad']} x {item} - ${detalle['subtotal']:.2f}")
+    st.sidebar.write(f"Total: ${st.session_state.total_pedido:.2f}")
+
+# Botón para finalizar el pedido
+if st

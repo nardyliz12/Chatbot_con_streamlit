@@ -30,10 +30,11 @@ def cargar_menus():
 
 # Verificar si el pedido es válido (item está en la carta)
 def verificar_pedido(mensaje, menus):
+    mensaje = mensaje.lower()  # Convertir todo a minúsculas
     for menu_type, menu in menus.items():
         productos_en_menu = menu['Item'].str.lower().tolist()
         for producto in productos_en_menu:
-            if producto in mensaje.lower():
+            if producto in mensaje:
                 return producto, menu_type
     return None, None
 
@@ -167,7 +168,7 @@ if prompt:
                 st.session_state.menu_actual = None
 
             # Mostrar menú según la solicitud
-            elif "menú" in prompt.lower() or "carta" in prompt.lower():
+            elif "menú" en prompt.lower() or "carta" en prompt.lower():
                 if "platos" in prompt.lower():
                     mostrar_menu('platos')
                     respuesta = "Aquí está el menú de platos. ¿Qué te gustaría ordenar?"
@@ -197,21 +198,7 @@ if prompt:
             distrito = verificar_distrito(prompt)
             if distrito:
                 respuesta += f" Repartimos en {distrito}."
-            elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
+            elif "reparto" en prompt.lower() or "entrega" in prompt.lower():
                 respuesta += f" No repartimos en esa zona. Zonas de reparto: {', '.join(DISTRITOS_REPARTO)}."
 
             st.chat_message("assistant").markdown(respuesta)
-            st.session_state.messages.append({"role": "assistant", "content": respuesta})
-
-        except Exception as e:
-            st.error(f"Hubo un error al procesar tu solicitud: {e}")
-
-# Mostrar el pedido actual en la barra lateral
-if st.session_state.pedido_actual:
-    st.sidebar.write("Tu pedido actual:")
-    for item, detalle in st.session_state.pedido_actual.items():
-        st.sidebar.write(f"{detalle['cantidad']} x {item} - ${detalle['subtotal']:.2f}")
-    st.sidebar.write(f"Total: ${st.session_state.total_pedido:.2f}")
-
-# Botón para finalizar el pedido
-if st

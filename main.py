@@ -23,6 +23,7 @@ def cargar_menus():
         platos = pd.read_csv('menu_platos.csv')
         bebidas = pd.read_csv('menu_bebidas.csv')
         postres = pd.read_csv('menu_postres.csv')
+        st.sidebar.write("Menú cargado:", platos.shape, bebidas.shape, postres.shape)
         return platos, bebidas, postres
     except FileNotFoundError:
         st.error("No se pudo encontrar uno de los archivos del menú.")
@@ -72,7 +73,6 @@ def manejar_saludo(mensaje):
 if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.carta_mostrada = False
-    st.session_state.menu_actual = None  # Agregamos para manejar qué menú se está mostrando
 
 # Manejo de cambios de modelo
 if "selected_model" not in st.session_state:
@@ -89,7 +89,6 @@ if parModelo != st.session_state.selected_model:
 if st.sidebar.button("Reiniciar chat"):
     st.session_state.messages = []
     st.session_state.carta_mostrada = False
-    st.session_state.menu_actual = None  # Reiniciar también la selección del menú
 
 # Mostrar mensajes de chat desde el historial
 with st.container():
@@ -97,81 +96,67 @@ with st.container():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-# Mostrar campo de entrada de prompt
+# Mostrar campo de entrada de prompt (inicialización antes del uso)
 prompt = st.chat_input("¿Qué quieres saber?")
 
 # Cargar el menú
 menu_platos, menu_bebidas, menu_postres = cargar_menus()
 
-# Función para mostrar el menú
-def mostrar_menu(tipo):
-    if tipo == 'platos':
-        st.write("Menú de Platos:")
-        st.write(menu_platos)
-    elif tipo == 'bebidas':
-        st.write("Menú de Bebidas:")
-        st.write(menu_bebidas)
-    elif tipo == 'postres':
-        st.write("Menú de Postres:")
-        st.write(menu_postres)
-
-# Validación del prompt
+# Validación del prompt: no vacío y no demasiado largo
 if prompt:
-    st.chat_message("user").markdown(prompt)
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    if len(prompt) > 2000:
+        st.error("El mensaje es demasiado largo. Por favor, acórtalo.")
+    else:
+        st.chat_message("user").markdown(prompt)
+        st.session_state.messages.append({"role": "user", "content": prompt})
 
-    with st.spinner("Generando respuesta..."):
-        try:
-            # Manejar saludo
-            if manejar_saludo(prompt):
-                respuesta = "¡Bienvenido a BotRestaurant! ¿Deseas ver el menú? Tenemos platos, bebidas y postres."
-                st.session_state.menu_actual = None
-
-            # Mostrar menú según la solicitud
-            elif "menú" in prompt.lower() or "carta" in prompt.lower():
-                if "platos" in prompt.lower():
-                    mostrar_menu('platos')
-                    respuesta = "Aquí está el menú de platos. Si deseas ver bebidas o postres, por favor indícalo."
-                    st.session_state.menu_actual = 'platos'
-                elif "bebidas" in prompt.lower():
-                    mostrar_menu('bebidas')
-                    respuesta = "Aquí está el menú de bebidas. Si deseas ver platos o postres, por favor indícalo."
-                    st.session_state.menu_actual = 'bebidas'
-                elif "postres" in prompt.lower():
-                    mostrar_menu('postres')
-                    respuesta = "Aquí está el menú de postres. Si deseas ver platos o bebidas, por favor indícalo."
-                    st.session_state.menu_actual = 'postres'
-                else:
-                    if st.session_state.menu_actual == 'platos':
-                        mostrar_menu('platos')
-                    elif st.session_state.menu_actual == 'bebidas':
-                        mostrar_menu('bebidas')
-                    elif st.session_state.menu_actual == 'postres':
-                        mostrar_menu('postres')
-                    respuesta = "Te mostré el último menú que pediste. Si quieres cambiar, puedes pedirme platos, bebidas o postres."
-
-            # Procesar pedidos
-            else:
-                pedido = verificar_pedido(prompt, menu_platos)
-                if pedido:
-                    monto = menu_platos[menu_platos['Plato'].str.lower() == pedido]['Precio'].values
-                    if monto:
-                        monto = monto[0]
-                        guardar_pedido(pedido, monto)
-                        respuesta = f"¡Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
+        with st.spinner("Generando respuesta..."):
+            try:
+                if manejar_saludo(prompt):
+                    respuesta = "¡Bienvenido a BotRestaurant, tu destino para saborear lo mejor de la comida asiática! ¿En qué puedo ayudarte? ¿Deseas ver el menú?"
+                elif "menú" in prompt.lower() or "carta" in prompt.lower():
+                    # Mostrar menú de platos inicialmente
+                    if not st.session_state.carta_mostrada:
+                        st.write("Aquí tienes el menú de los platos:")
+                        st.write(menu_platos)
+                        respuesta = "Aquí tienes el menú completo de platos. Si deseas, puedes ver el menú de bebidas o postres. ¿Cuál te gustaría ver?"
+                        st.session_state.carta_mostrada = True
                     else:
-                        respuesta = "Ocurrió un error con el precio de tu pedido."
+                        respuesta = "Ya te mostré el menú de platos. ¿Te gustaría ver el menú de bebidas o postres?"
+                elif "bebidas" in prompt.lower():
+                    st.write("Aquí tienes el menú de bebidas:")
+                    st.write(menu_bebidas)
+                    respuesta = "Aquí está el menú de bebidas. ¿Te gustaría ver el menú de postres también?"
+                elif "postres" in prompt.lower():
+                    st.write("Aquí tienes el menú de postres:")
+                    st.write(menu_postres)
+                    respuesta = "Aquí está el menú de postres. ¿Te gustaría volver a ver el menú de platos o bebidas?"
                 else:
-                    respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
+                    pedido = verificar_pedido(prompt, menu_platos)
+                    if pedido:
+                        monto = menu_platos[menu_platos['Plato'].str.lower() == pedido]['Precio'].values
+                        if monto:
+                            monto = monto[0]
+                            guardar_pedido(pedido, monto)
+                            respuesta = f"¡Excelente elección! Has pedido {pedido} por ${monto}. ¿Deseas algo más?"
+                        else:
+                            respuesta = "Lo siento, ocurrió un error al procesar el precio del pedido."
+                    else:
+                        respuesta = "Lo siento, no entendí tu pedido. ¿Podrías repetirlo o pedir la carta para ver nuestras opciones?"
 
-            distrito = verificar_distrito(prompt)
-            if distrito:
-                respuesta += f" Repartimos en {distrito}."
-            elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
-                respuesta += f" No repartimos en esa zona. Zonas de reparto: {', '.join(DISTRITOS_REPARTO)}."
+                distrito = verificar_distrito(prompt)
+                if distrito:
+                    respuesta += f" Y sí, repartimos en tu distrito: {distrito}."
+                elif "reparto" in prompt.lower() or "entrega" in prompt.lower():
+                    respuesta += " Lo siento, no repartimos en ese distrito. Nuestras zonas de reparto son: " + ", ".join(DISTRITOS_REPARTO)
 
-            st.chat_message("assistant").markdown(respuesta)
-            st.session_state.messages.append({"role": "assistant", "content": respuesta})
+                st.chat_message("assistant").markdown(respuesta)
+                st.session_state.messages.append({"role": "assistant", "content": respuesta})
 
-        except Exception as e:
-            st.error(f"Hubo un error al procesar tu solicitud: {e}")
+            except Exception as e:
+                st.error(f"Hubo un error al procesar tu solicitud: {e}")
+else:
+    if "messages" not in st.session_state:
+        st.chat_message("assistant").markdown("¡Bienvenido! ¿En qué puedo ayudarte hoy?")
+        st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido! ¿En qué puedo ayudarte hoy?"})
+        

@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from groq import Groq
-from typing import Generator
 import os
 
 # Título de la aplicación
@@ -114,17 +113,24 @@ if prompt:
         with st.spinner("Generando respuesta..."):
             try:
                 if manejar_saludo(prompt):
-                    respuesta = "¡Bienvenido a BotRestaurant, tu destino para saborear lo mejor de la comida asiática! ¿En qué puedo ayudarte?, ¿Deseas ver el menu?"
+                    respuesta = "¡Bienvenido a BotRestaurant, tu destino para saborear lo mejor de la comida asiática! ¿En qué puedo ayudarte? ¿Deseas ver el menú?"
                 elif "menú" in prompt.lower() or "carta" in prompt.lower():
+                    # Mostrar menú de platos inicialmente
                     if not st.session_state.carta_mostrada:
-                        st.write("Aquí tienes el menú del restaurante:")
+                        st.write("Aquí tienes el menú de los platos:")
                         st.write(menu_platos)
-                        st.write(menu_bebidas)
-                        st.write(menu_postres)
-                        respuesta = "Aquí tienes el menú completo. ¿Qué te gustaría ordenar?"
+                        respuesta = "Aquí tienes el menú completo de platos. Si deseas, puedes ver el menú de bebidas o postres. ¿Cuál te gustaría ver?"
                         st.session_state.carta_mostrada = True
                     else:
-                        respuesta = "Ya te mostré el menú. ¿Te gustaría pedir algo?"
+                        respuesta = "Ya te mostré el menú de platos. ¿Te gustaría ver el menú de bebidas o postres?"
+                elif "bebidas" in prompt.lower():
+                    st.write("Aquí tienes el menú de bebidas:")
+                    st.write(menu_bebidas)
+                    respuesta = "Aquí está el menú de bebidas. ¿Te gustaría ver el menú de postres también?"
+                elif "postres" in prompt.lower():
+                    st.write("Aquí tienes el menú de postres:")
+                    st.write(menu_postres)
+                    respuesta = "Aquí está el menú de postres. ¿Te gustaría volver a ver el menú de platos o bebidas?"
                 else:
                     pedido = verificar_pedido(prompt, menu_platos)
                     if pedido:
@@ -153,3 +159,4 @@ else:
     if "messages" not in st.session_state:
         st.chat_message("assistant").markdown("¡Bienvenido! ¿En qué puedo ayudarte hoy?")
         st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido! ¿En qué puedo ayudarte hoy?"})
+    
